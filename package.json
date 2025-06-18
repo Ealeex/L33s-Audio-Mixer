@@ -1,0 +1,19 @@
+{
+  "name": "webaudiocapture",
+  "version": "1.0.0",
+  "description": "",
+  "main": "inject.js",
+  "scripts": {
+    "start": "web-ext run --firefox-profile Testing --url http://localhost/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.4"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "webextension-polyfill": "^0.12.0"
+  }
+}

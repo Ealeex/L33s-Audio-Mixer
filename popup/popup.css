@@ -1,0 +1,68 @@
+* {
+    padding: 0px;
+    margin: 0px;
+    color: white;
+    font-family: "IBM Plex Sans", "Roboto", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+}
+
+body {
+    width: fit-content;
+    height: fit-content;
+    background-color: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+#header {
+    margin: 10px;
+}
+
+.option-container {
+    background-color: #333;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: row;
+    margin: 0px 10px 10px 10px;
+    width: 300px;
+}
+
+.option-container > * {
+    margin: 5px;
+}
+
+.option-range[type='range'] {
+    appearance: none;
+    width: 150px;
+    height: 6px;
+    background: #555;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+/* Firefox */
+.option-range[type='range']::-moz-range-thumb {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #fff;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.option-range[type='range']::-moz-range-thumb:active {
+    border-radius: 2px;
+    transform: rotate(90deg)
+}
+
+/* Firefox track */
+.option-range[type='range']::-moz-range-track {
+    background: #222;
+    height: 6px;
+    border-radius: 3px;
+}
