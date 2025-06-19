@@ -4,7 +4,9 @@
   "description": "",
   "main": "inject.js",
   "scripts": {
-    "start": "web-ext run --firefox-profile Testing --url http://localhost/ --devtools"
+    "start": "web-ext run --firefox-profile Testing --url http://localhost/",
+    "build": "web-ext build --ignore-files package-lock.json .env package.json test_server.js tsconfig.json public --overwrite-dest",
+    "sign": "web-ext sign --channel=listed --amo-metadata=manifest.json --api-key=$AMO_JWT_ISSUER --api-secret=$AMO_JWT_SECRET"
   },
   "keywords": [],
   "author": "",

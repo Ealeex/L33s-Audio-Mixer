@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Basic Audio Convolver",
+  "name": "L33's Audio Equalizer",
   "version": "1.0",
   "description": "Injects audio processing script with convolver node.",
   "permissions": ["storage"],
