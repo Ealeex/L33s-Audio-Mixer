@@ -134,11 +134,19 @@ class AudioHandler {
 
     async handleUserSettings() {
 
-        let result = await browser.storage.local.get(['convolver_mix', 'low_eq', 'mid_eq', 'high_eq']);
-        this.convolver.mix = typeof result['convolver_mix'] === 'number' ? result['convolver_mix'] : 0.5;
+        let storageQuery = ['convolver_mix', ...this.equalizer.eqBands.map(band => `band-${band}`)];
+        let result = await browser.storage.local.get(storageQuery);
+        Object.entries(result).forEach(entry => {
+            let [key,value] = entry; 
+            if(key == 'convolver_mix') this.convolver.mix = typeof value === 'number' ? value : 0.5;
+            if(key.startsWith('band-')) {
+                let bandIndex = this.equalizer.eqBands.indexOf(parseInt(key.replace('band-', '')));
+                this.equalizer.setFrequencyGain(bandIndex, value);
+            }
+        })
 
         browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-            // console.log(`[LeeAudio] Message Received: `, {action:message.action, value:message.value});
+            console.log(`[LeeAudio] Message Received: `, {action:message.action, value:message.value});
             if (message.action === "set-convolver_mix") this.convolver.mix = message.value;
             if (message.action.startsWith('set-band-')) {
                 let bandIndex = this.equalizer.eqBands.indexOf(parseInt(message.action.replace('set-band-', '')));

@@ -3,6 +3,7 @@
     margin: 0px;
     color: white;
     font-family: "IBM Plex Sans", "Roboto", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+    user-select: none;
 }
 
 body {
@@ -35,9 +36,45 @@ body {
 }
 
 .option-range[type='range'] {
-    appearance: none;
     width: 150px;
     height: 6px;
+}
+
+.option-range[type='range']::-moz-range-track {
+    height: 6px;
+}
+
+.equalizer-container {
+    border-radius: 5px;
+    background-color: #333;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-direction: row;
+    margin: 0px 10px 10px 10px;
+}
+
+.equalizer-range-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-direction: column;
+}
+
+.equalizer-range[type='range'] {
+    writing-mode: vertical-lr;
+    direction: rtl;
+    height: 150px;
+    width: 6px;
+    margin: 5px 15px;
+}
+
+.equalizer-range[type='range']::-moz-range-track {
+    width: 6px;
+}
+
+input[type='range'] {
+    appearance: none;
     background: #555;
     border-radius: 3px;
     outline: none;
@@ -45,7 +82,7 @@ body {
 }
 
 /* Firefox */
-.option-range[type='range']::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
     height: 15px;
     width: 15px;
     border-radius: 50%;
@@ -55,14 +92,13 @@ body {
     transition: 0.25s;
 }
 
-.option-range[type='range']::-moz-range-thumb:active {
+input[type='range']::-moz-range-thumb:active {
     border-radius: 2px;
     transform: rotate(90deg)
 }
 
 /* Firefox track */
-.option-range[type='range']::-moz-range-track {
+input[type='range']::-moz-range-track {
     background: #222;
-    height: 6px;
     border-radius: 3px;
 }
