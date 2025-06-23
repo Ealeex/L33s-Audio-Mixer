@@ -2,6 +2,8 @@
 
 A browser extension that injects an audio processing script into web pages, providing a customizable equalizer and convolver (reverb) effect for all audio elements. Designed for Firefox and Chrome using Manifest V3.
 
+![Screenshot of L33's Audio Equalizer popup](example.png)
+
 ## Features
 - **10-band Equalizer**: Fine-tune audio frequencies from 32Hz to 16kHz.
 - **Reverb Slider**: Simulates a car's interior using a built-in impulse response sample.
