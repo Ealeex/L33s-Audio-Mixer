@@ -4,14 +4,15 @@
   "description": "",
   "main": "inject.js",
   "scripts": {
-    "start": "web-ext run --firefox-profile Testing --url http://localhost/",
-    "build": "web-ext build --ignore-files package-lock.json .env package.json test_server.js tsconfig.json public --overwrite-dest",
-    "sign": "web-ext sign --channel=listed --amo-metadata=manifest.json --api-key=$AMO_JWT_ISSUER --api-secret=$AMO_JWT_SECRET"
+    "start": "web-ext run -s ext --firefox-profile Testing --url http://localhost/",
+    "build": "web-ext build -s ext --overwrite-dest",
+    "sign": "web-ext sign --channel=listed -s ext --amo-metadata=ext/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chrome": "^0.0.326",
     "@types/firefox-webext-browser": "^120.0.4"
   },
   "dependencies": {

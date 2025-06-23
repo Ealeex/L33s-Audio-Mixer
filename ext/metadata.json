@@ -1,0 +1,6 @@
+{
+    "name": {"en-US":"L33's Audio Equalizer"},
+    "description": {"en-US":"Injects audio processing script with convolver node."},
+    "categories": { "firefox": ["photos-music-videos", "tabs"] },
+    "version": { "license": "MPL-2.0" }
+}

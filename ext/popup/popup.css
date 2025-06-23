@@ -7,8 +7,8 @@
 }
 
 body {
-    width: fit-content;
-    height: fit-content;
+    width: 380px;
+    height: 273px;
     background-color: #222;
     display: flex;
     justify-content: center;
@@ -75,13 +75,13 @@ body {
 
 input[type='range'] {
     appearance: none;
+    -webkit-appearance: none;
     background: #555;
     border-radius: 3px;
     outline: none;
     cursor: pointer;
 }
 
-/* Firefox */
 input[type='range']::-moz-range-thumb {
     height: 15px;
     width: 15px;
@@ -97,8 +97,34 @@ input[type='range']::-moz-range-thumb:active {
     transform: rotate(90deg)
 }
 
-/* Firefox track */
+
 input[type='range']::-moz-range-track {
     background: #222;
     border-radius: 3px;
+}
+
+/* Chrome / WebKit input[type='range'] track */
+input[type='range']::-webkit-slider-runnable-track {
+    height: 6px;
+    background: #222;
+    border-radius: 3px;
+}
+
+/* Chrome / WebKit input[type='range'] thumb */
+input[type='range']::-webkit-slider-thumb {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #fff;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -5px; /* Aligns thumb with track */
+    transition: 0.25s;
+}
+
+input[type='range']::-webkit-slider-thumb:active {
+    border-radius: 2px;
+    transform: rotate(90deg);
 }
