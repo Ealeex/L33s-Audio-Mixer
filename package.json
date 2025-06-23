@@ -1,16 +1,16 @@
 {
-  "name": "webaudiocapture",
-  "version": "1.0.0",
-  "description": "",
+  "name": "L33s-Audio-Mixer",
+  "version": "1.0.1",
+  "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
   "main": "inject.js",
   "scripts": {
-    "start": "web-ext run -s ext --firefox-profile Testing --url http://localhost/",
-    "build": "web-ext build -s ext --overwrite-dest",
-    "sign": "web-ext sign --channel=listed -s ext --amo-metadata=ext/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
+    "start": "web-ext run -s src --firefox-profile Testing --url http://localhost/",
+    "build": "web-ext build -s src --overwrite-dest",
+    "sign": "web-ext sign --channel=listed -s src --amo-metadata=src/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["photos-music-videos", "tabs"],
+  "author": "Ealeex",
+  "license": "MPL-2.0",
   "devDependencies": {
     "@types/chrome": "^0.0.326",
     "@types/firefox-webext-browser": "^120.0.4"
@@ -18,5 +18,9 @@
   "dependencies": {
     "express": "^5.1.0",
     "webextension-polyfill": "^0.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ealeex/L33s-Audio-Mixer"
   }
 }
