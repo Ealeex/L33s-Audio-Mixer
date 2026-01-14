@@ -2,6 +2,15 @@
 const _runtime = typeof browser !== "undefined" ? browser : chrome;
 const log = (...args) => console.log(`[LeeAudio] (Web) `, ...args);
 class UserRangeOption {
+    name;
+    storageName;
+    containerElem;
+    inputElem;
+    labelElem;
+    min;
+    max;
+    step;
+    default;
     constructor(opts) {
         this.name = opts.name;
         this.storageName = this.name.toLowerCase().split(' ').join('_');
@@ -46,8 +55,12 @@ class UserRangeOption {
     }
 }
 class WebEqualizer {
+    bands = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000];
+    min;
+    max;
+    step;
+    default;
     constructor(opts) {
-        this.bands = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
         this.min = opts?.min ?? -20;
         this.max = opts?.max ?? 20;
         this.step = opts?.step ?? 1;
@@ -94,7 +107,71 @@ class WebEqualizer {
         document.body.appendChild(container);
     }
 }
+const waveformCanvas = document.getElementById('waveform');
+const waveformCTX = waveformCanvas.getContext('2d');
+const freqCanvas = document.getElementById('frequency');
+const freqCTX = freqCanvas.getContext('2d');
+function setupGraph_FrequencyDomain() {
+    let intervalId = setInterval(() => {
+        _runtime.storage.local.get('analyserData', (result) => {
+            const frequencies = result.analyserData;
+            if (frequencies)
+                drawEQ(frequencies);
+        });
+    }, 1000 / 144);
+}
+function drawEQ(frequencyData) {
+    freqCTX.fillStyle = 'black';
+    freqCTX.fillRect(0, 0, freqCanvas.width, freqCanvas.height);
+    freqCTX.beginPath();
+    const minDb = -100;
+    const maxDb = 0;
+    const binCount = frequencyData.length;
+    for (let i = 0; i < binCount; i++) {
+        const x = (i / (binCount - 1)) * freqCanvas.width;
+        const yNorm = (frequencyData[i] - minDb) / (maxDb - minDb);
+        const y = freqCanvas.height - yNorm * freqCanvas.height;
+        if (i === 0)
+            freqCTX.moveTo(x, y);
+        else
+            freqCTX.lineTo(x, y);
+    }
+    freqCTX.strokeStyle = 'white';
+    freqCTX.lineWidth = 2;
+    freqCTX.stroke();
+}
+function setupGraph_TimeDomain() {
+    let intervalId = setInterval(() => {
+        _runtime.storage.local.get('waveformData', (result) => {
+            const waveform = result.waveformData;
+            if (waveform)
+                drawWaveform(waveform);
+        });
+    }, 1000 / 144);
+}
+function drawWaveform(waveform) {
+    waveformCTX.fillStyle = 'black';
+    waveformCTX.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+    waveformCTX.beginPath();
+    const binCount = waveform.length;
+    for (let i = 0; i < binCount; i++) {
+        const x = (i / (binCount - 1)) * waveformCanvas.width;
+        // Normalize waveform from -1..1 to canvas height
+        const y = ((1 - waveform[i]) / 2) * waveformCanvas.height;
+        if (i === 0)
+            waveformCTX.moveTo(x, y);
+        else
+            waveformCTX.lineTo(x, y);
+    }
+    waveformCTX.strokeStyle = 'lime';
+    waveformCTX.lineWidth = 2;
+    waveformCTX.stroke();
+}
 document.addEventListener('DOMContentLoaded', async () => {
-    new UserRangeOption({ name: 'Convolver Mix' });
+    new UserRangeOption({ name: 'Pre-amp', min: 0, max: 1, step: 0.01 });
+    new UserRangeOption({ name: 'Convolver Mix', step: 0.1 });
+    new UserRangeOption({ name: 'Stereo Seperation', min: 0, default: 1, max: 5, step: 1 });
     new WebEqualizer({ min: -20, max: 20, step: 2 });
+    setupGraph_FrequencyDomain();
+    setupGraph_TimeDomain();
 });

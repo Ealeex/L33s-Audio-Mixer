@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "L33's Audio Equalizer",
-  "version": "1.1",
+  "version": "1.4",
   "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
   "permissions": [
     "storage"

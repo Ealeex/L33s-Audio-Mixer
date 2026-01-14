@@ -8,16 +8,12 @@
 
 body {
     width: 380px;
-    height: 273px;
+    height: 550px;
     background-color: #222;
     display: flex;
-    justify-content: center;
+    justify-content: space-evenly;
     align-items: center;
     flex-direction: column;
-}
-
-#header {
-    margin: 10px;
 }
 
 .option-container {
@@ -27,7 +23,6 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    margin: 0px 10px 10px 10px;
     width: 300px;
 }
 
@@ -51,7 +46,6 @@ body {
     justify-content: space-around;
     align-items: center;
     flex-direction: row;
-    margin: 0px 10px 10px 10px;
 }
 
 .equalizer-range-container {
@@ -127,4 +121,9 @@ input[type='range']::-webkit-slider-thumb {
 input[type='range']::-webkit-slider-thumb:active {
     border-radius: 2px;
     transform: rotate(90deg);
+}
+
+canvas {
+    border-radius: 5px;
+    border: 1px solid #444;
 }
