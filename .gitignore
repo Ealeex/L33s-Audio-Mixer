@@ -1,4 +1,4 @@
 node_modules
 web-ext-artifacts
-extention/.amo-upload-uuid
+extension/.amo-upload-uuid
 *.js
