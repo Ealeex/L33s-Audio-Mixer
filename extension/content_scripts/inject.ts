@@ -4,36 +4,46 @@ const _logErr = (...data:any[]) => console.error(`[LeeAudio]`, ...data);
 const runtime = typeof browser !== "undefined" ? browser : chrome;
 
 interface INode {
-    readonly name: string;
-    init(audioContext: AudioContext): void;
-    connect(node: AudioNode): void;
-    disconnect(node: AudioNode): void;
-    get entry(): AudioNode;
+  readonly name: string;
+  init(audioContext: AudioContext): Promise<void> | void;
+  connect(node: AudioNode): void;
+  disconnect(node: AudioNode): void;
+  get entry(): AudioNode;
 }
 
-abstract class _Node implements INode {
-    abstract readonly name: string;
-    protected audioContext!: AudioContext;
-    protected entryNode!: GainNode;
-    protected exitNode!: GainNode;
-    async init(audioContext: AudioContext) {
-        if (this.audioContext) return;
-        this.audioContext = audioContext;
-        this.entryNode = this.audioContext.createGain();
-        this.exitNode = this.audioContext.createGain();
-        this.createNodeTree();
-        this.setupNodeRoutes();
-        await this.setup();
-    }
-    connect(node: AudioNode) { this.exitNode.connect(node); }
-    disconnect(node: AudioNode) { this.exitNode.disconnect(node); }
-    protected async setup() {}
-    protected createNodeTree() {}
-    protected setupNodeRoutes() { this.entryNode.connect(this.exitNode); }
-    get entry(): AudioNode { return this.entryNode; }
+abstract class AudioModule implements INode {
+  abstract readonly name: string;
+  protected audioContext!: AudioContext;
+  protected entryNode!: GainNode;
+  protected exitNode!: GainNode;
+
+  async init(audioContext: AudioContext) {
+    if (this.audioContext) return;
+
+    this.audioContext = audioContext;
+    this.entryNode = audioContext.createGain();
+    this.exitNode = audioContext.createGain();
+
+    this.createNodeTree();
+    this.setupNodeRoutes();
+    await this.setup();
+  }
+
+  connect(node: AudioNode) { this.exitNode.connect(node); }
+  disconnect(node: AudioNode) { this.exitNode.disconnect(node); }
+
+  protected createNodeTree() {}
+  protected setupNodeRoutes() {
+    this.entryNode.connect(this.exitNode);
+  }
+  protected async setup() {}
+
+  get entry(): AudioNode {
+    return this.entryNode;
+  }
 }
 
-class Equalizer extends _Node {
+class Equalizer extends AudioModule {
 
     readonly name = 'Equalizer';
 
@@ -79,7 +89,7 @@ class Equalizer extends _Node {
 
 }
 
-class WaveformAnalyser extends _Node {
+class WaveformAnalyser extends AudioModule {
 
     readonly name = 'Waveform_Analyser';
     
@@ -129,7 +139,7 @@ class WaveformAnalyser extends _Node {
 
 }
 
-class FrequencyAnalyser extends _Node {
+class FrequencyAnalyser extends AudioModule {
 
     readonly name = 'Frequency_Analyser';
 
@@ -242,7 +252,7 @@ class FrequencyAnalyser extends _Node {
 
 }
 
-class Convolver extends _Node {
+class Convolver extends AudioModule {
 
     readonly name = 'Convolver';
 
@@ -297,7 +307,7 @@ class Convolver extends _Node {
 
 }
 
-class StereoWidener extends _Node {
+class StereoWidener extends AudioModule {
 
     readonly name = 'Stereo Widener';
 
@@ -366,7 +376,7 @@ class StereoWidener extends _Node {
 
 }
 
-class Volume extends _Node {
+class Volume extends AudioModule {
     readonly name = 'Pre-Amplifier';
     setVolume(vol: number) { this.entryNode.gain.value = vol; }
 }
@@ -375,7 +385,7 @@ class AudioHandler {
 
     // Storage
     audioContext = new AudioContext();
-    last_node!: AudioNode|_Node;
+    last_node!: AudioNode|AudioModule;
     private attached = new Set<HTMLMediaElement>();
 
     // Nodes
@@ -508,7 +518,7 @@ class AudioHandler {
         });
     }
 
-    async loadPlugin(plugin:_Node) {
+    async loadPlugin(plugin:AudioModule) {
         _log(`Loading Plugin: ${plugin.name}`);
         try {
             await plugin.init(this.audioContext);
@@ -523,9 +533,9 @@ class AudioHandler {
 
 }
 
-(async () => {
+(async() => {
 
-    if(location.hostname === 'open.spotify.com') { _log('Spotify detected — audio processing disabled (DRM-protected)'); return }
+    if(location.hostname === 'open.spotify.com') _log('Spotify detected — audio processing disabled (DRM-protected)');
 
     const handler = new AudioHandler();
     await handler.init();
@@ -535,7 +545,7 @@ class AudioHandler {
     const originalPlay = Audio.prototype.play;
     Audio.prototype.play = function (...args: any) {
         handler.attach(this);
-        return originalPlay.apply(this, args as any);
+        originalPlay.apply(this, args as any);
     };
 
-})();
+})

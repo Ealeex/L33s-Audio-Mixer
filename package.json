@@ -8,7 +8,10 @@
     "build": "web-ext build -s extention --overwrite-dest",
     "sign": "web-ext sign --channel=listed -s extention --amo-metadata=extention/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
   },
-  "keywords": ["photos-music-videos", "tabs"],
+  "keywords": [
+    "photos-music-videos",
+    "tabs"
+  ],
   "author": "Ealeex",
   "license": "MPL-2.0",
   "devDependencies": {
