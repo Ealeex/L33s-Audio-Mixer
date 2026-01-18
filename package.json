@@ -1,12 +1,12 @@
 {
-  "name": "L33s-Audio-Mixer",
+  "name": "l33s-audio-mixer",
   "version": "1.0.1",
   "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
   "main": "inject.js",
   "scripts": {
-    "start": "web-ext run -s src --firefox-profile Testing --url https://www.youtube.com/watch?v=0NDqYZVbpho",
-    "build": "web-ext build -s src --overwrite-dest",
-    "sign": "web-ext sign --channel=listed -s src --amo-metadata=src/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
+    "start": "web-ext run -s extention --firefox-profile Testing --url https://www.youtube.com/watch?v=0NDqYZVbpho",
+    "build": "web-ext build -s extention --overwrite-dest",
+    "sign": "web-ext sign --channel=listed -s extention --amo-metadata=extention/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
   },
   "keywords": ["photos-music-videos", "tabs"],
   "author": "Ealeex",
