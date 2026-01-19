@@ -18,7 +18,7 @@ export class StereoWidener extends AudioModule {
     private invertSide!: GainNode;
     private merger!: ChannelMergerNode;
 
-    protected  createNodeTree(): void {
+    protected  createNodes(): void {
         this.splitter = this.audioContext.createChannelSplitter(2);
         this.mid = this.audioContext.createGain();
         this.side = this.audioContext.createGain();
@@ -54,7 +54,7 @@ export class StereoWidener extends AudioModule {
         this.merger.connect(this.exitNode);
     }
 
-    protected  async setup() {
+    protected async setup() {
         this.leftGainMid.gain.value = 0.5;
         this.rightGainMid.gain.value = 0.5;
         this.leftGainSide.gain.value = 0.5;

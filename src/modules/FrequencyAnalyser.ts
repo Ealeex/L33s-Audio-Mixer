@@ -1,5 +1,5 @@
 import { AudioModule } from "./AudioModule";
-import Runtime from "../Runtime";
+import { StorageManager } from "../classes/StorageManager";
 
 export class FrequencyAnalyser extends AudioModule {
 
@@ -16,7 +16,7 @@ export class FrequencyAnalyser extends AudioModule {
     // Nodes
     analyserNode!: AnalyserNode;  
 
-    protected createNodeTree() {
+    protected createNodes() {
         this.analyserNode = this.audioContext.createAnalyser();
     }
 
@@ -50,8 +50,7 @@ export class FrequencyAnalyser extends AudioModule {
     }
 
     private sendAnalyserData_FreqDomain() {
-        const logData = this.getLogFrequencyData(this.visualBinCount);
-        Runtime.storage.local.set({ analyserData: Array.from(logData) });
+        StorageManager.set('analyserData', Array.from(this.getLogFrequencyData(this.visualBinCount)))
     }
 
     private getLogFrequencyData(logBinCount: number): Float32Array {

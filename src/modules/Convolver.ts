@@ -1,5 +1,5 @@
 import { AudioModule } from "./AudioModule";
-import Runtime from "../Runtime";
+import Runtime from "../util/Runtime";
 
 export class Convolver extends AudioModule {
 
@@ -13,7 +13,7 @@ export class Convolver extends AudioModule {
     private wetGainNode!: GainNode;
     private convolverNode!: ConvolverNode;
 
-    createNodeTree() {
+    createNodes() {
         this.dryGainNode = this.audioContext.createGain();
         this.wetGainNode = this.audioContext.createGain();
         this.convolverNode = this.audioContext.createConvolver();

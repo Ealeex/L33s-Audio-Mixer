@@ -1,4 +1,5 @@
-import Runtime from "../Runtime";
+import Runtime from "../util/Runtime";
+import { StorageManager } from "../classes/StorageManager";
 import { AudioModule } from "./AudioModule";
 
 export class WaveformAnalyser extends AudioModule {
@@ -15,7 +16,7 @@ export class WaveformAnalyser extends AudioModule {
     // Nodes
     private analyserNode!: AnalyserNode;
 
-    protected createNodeTree() {
+    protected createNodes() {
         this.analyserNode = this.audioContext.createAnalyser();
     }
 
@@ -44,9 +45,7 @@ export class WaveformAnalyser extends AudioModule {
     }
 
     private sendWaveformData() {
-        Runtime.storage.local.set({
-            waveformData: Array.from(this.data)
-        });
+        StorageManager.set('waveformData', Array.from(this.data))
     }
 
 }
