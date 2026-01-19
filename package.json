@@ -4,8 +4,10 @@
   "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
   "main": "inject.js",
   "scripts": {
+    "build:content_scripts": "esbuild extension/content_scripts/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
+    "build": "npm run build:content_scripts",
     "start": "web-ext run -s extension --firefox-profile Testing --url https://www.youtube.com/watch?v=0NDqYZVbpho",
-    "build": "web-ext build -s extension --overwrite-dest",
+    "build-ext": "web-ext build -s extension --overwrite-dest",
     "sign": "web-ext sign --channel=listed -s extension --amo-metadata=extension/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
   },
   "keywords": [
