@@ -37,5 +37,9 @@
     "default_icon": {
       "48": "icons/icon-48.png"
     }
+  },
+  "options_ui": {
+    "page": "config_page/index.html",
+    "open_in_tab": true
   }
 }

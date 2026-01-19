@@ -6,7 +6,8 @@
   "scripts": {
     "build:content_scripts": "esbuild src/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
     "build:popup": "esbuild src/popup.ts --bundle --platform=node --format=iife --outfile=extension/popup/popup.js",
-    "build": "npm run build:content_scripts && npm run build:popup",
+    "build:options": "esbuild src/options.ts --bundle --platform=node --format=iife --outfile=extension/config_page/options.js",
+    "build": "npm run build:content_scripts && npm run build:popup && npm run build:options",
     "start": "web-ext run -s extension --firefox-profile Testing --url https://www.youtube.com/watch?v=0NDqYZVbpho",
     "build-ext": "web-ext build -s extension",
     "sign": "web-ext sign --channel=listed -s extension --amo-metadata=extension/metadata.json --api-key=user:18163912:496 --api-secret=99f7bdc58abdcd7ade38bba73394cdebf0f4da16f4c53b2f1a98710b05a50c04"
