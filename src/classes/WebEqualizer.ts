@@ -61,7 +61,7 @@ export class WebEqualizer {
         let container = document.createElement('div');
         container.classList.add('equalizer-container');
         this.bands.forEach(async band => { container.appendChild(await this.createBandRange(band)); })
-        document.body.appendChild(container);
+        document.getElementById('wrapper')!.appendChild(container);
     }
 
 }

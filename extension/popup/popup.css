@@ -7,13 +7,21 @@
 }
 
 body {
-    width: 380px;
-    height: 550px;
+    width: 340px;
+    height: 535px;
     background-color: #222;
     display: flex;
     justify-content: space-evenly;
     align-items: center;
     flex-direction: column;
+}
+
+#wrapper {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: stretch;
+    flex-direction: column;
+    gap:5px;
 }
 
 .option-container {
@@ -23,7 +31,6 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-direction: row;
-    width: 300px;
 }
 
 .option-container > * {

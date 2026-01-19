@@ -14,17 +14,14 @@ export class UserRangeOption {
     default:number;
 
     constructor(opts:{name:string, min?:number, max?:number, step?:number, default?:number}) {
-
         this.name = opts.name;
         this.storageName = this.name.toLowerCase().split(' ').join('_');
         this.min = opts.min ?? 0;
         this.max = opts.max ?? 1;
         this.step = opts.step ?? 0.01;
         this.default = opts.default ?? 0.5;
-
         this.createElement();
         this.setupStorage();
-
     }
 
     async setupStorage() {
@@ -60,7 +57,7 @@ export class UserRangeOption {
         this.inputElem.value = this.default.toString();
         this.inputElem.classList.add('option-range');
         this.containerElem.appendChild(this.inputElem);
-        document.body.appendChild(this.containerElem);
+        document.getElementById('wrapper')!.appendChild(this.containerElem);
     }
 
 }
