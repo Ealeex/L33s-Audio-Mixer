@@ -548,4 +548,4 @@ class AudioHandler {
         originalPlay.apply(this, args as any);
     };
 
-})
+})();
