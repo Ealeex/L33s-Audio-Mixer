@@ -7,11 +7,9 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
 ![Screenshot of L33's Audio Equalizer popup](example.png)
 
 ## Features
-- **10-band Equalizer**: Fine-tune audio frequencies from 32Hz to 16kHz.
+- **9-band Equalizer**: Fine-tune audio frequencies from 32Hz to 8kHz.
 - **Reverb Slider**: Simulates a car's interior using a built-in impulse response sample.
-- **Popup UI**: Adjust equalizer bands and reverb mix via a modern popup interface.
-- **Persistent Settings**: User preferences are saved using browser storage.
-- **Works on All Sites**: Injects processing on all URLs with audio elements.
+- **Stereo Widener**: Puts you in the song.
 
 ## Installation
 1. Clone or download this repository.
