@@ -1,3 +1,4 @@
+import { Config } from "../Config";
 import { AudioModule } from "./AudioModule";
 
 export class Equalizer extends AudioModule {
@@ -5,7 +6,7 @@ export class Equalizer extends AudioModule {
     readonly name = 'Equalizer';
 
     // Config
-    readonly eqBands = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000];
+    readonly eqBands = Config.EQ_BANDS;
     
     // Nodes
     private eqBandNodes: BiquadFilterNode[] = [];

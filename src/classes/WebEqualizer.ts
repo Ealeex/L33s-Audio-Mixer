@@ -1,8 +1,9 @@
+import { Config } from "../Config";
 import Runtime from "../util/Runtime";
 
 export class WebEqualizer {
 
-    bands = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000];
+    bands = Config.EQ_BANDS;
     min:number;
     max:number;
     step:number;
