@@ -6,7 +6,6 @@ import { PresetManager } from "./ui/PresetManager";
 import { Logger } from "./util/Logger";
 import { Preset } from "./Config";
 
-
 document.addEventListener('DOMContentLoaded', async() => {
 
     Logger.log("Initializing Popup");
