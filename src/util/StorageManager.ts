@@ -1,4 +1,4 @@
-import Runtime from "../util/Runtime";
+import Runtime from "./Runtime";
 
 /**
  * Manages storage operations with subscription support.

@@ -153,3 +153,25 @@ canvas {
 .button:active {
     background-color: #333;
 }
+
+select {
+    background-color: #333;
+    border-radius: 5px;
+    transition: 0.25s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+    border: none;
+    text-align: center;
+    font-size: 15px;
+}
+
+select:hover {
+    background-color: #444;
+    cursor: pointer;
+}
+
+select:active {
+    background-color: #333;
+}

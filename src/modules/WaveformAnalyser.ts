@@ -1,5 +1,5 @@
 import Runtime from "../util/Runtime";
-import { StorageManager } from "../classes/StorageManager";
+import { StorageManager } from "../util/StorageManager";
 import { AudioModule } from "./AudioModule";
 
 export class WaveformAnalyser extends AudioModule {

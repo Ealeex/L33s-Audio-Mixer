@@ -1,5 +1,5 @@
 import { AudioModule } from "./AudioModule";
-import { StorageManager } from "../classes/StorageManager";
+import { StorageManager } from "../util/StorageManager";
 
 export class FrequencyAnalyser extends AudioModule {
 

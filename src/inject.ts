@@ -1,4 +1,4 @@
-import { AudioHandler } from "./classes/AudioHandler";
+import { AudioHandler } from "./ui/AudioHandler";
 import { Logger } from "./util/Logger";
 
 (async () => {

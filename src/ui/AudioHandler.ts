@@ -6,7 +6,7 @@ import { WaveformAnalyser } from "../modules/WaveformAnalyser";
 import { StereoWidener } from "../modules/StereoWidener";
 import { Volume } from "../modules/Volume";
 import { Logger } from "../util/Logger";
-import { StorageManager } from "../classes/StorageManager";
+import { StorageManager } from "../util/StorageManager";
 
 export class AudioHandler {
 
@@ -92,7 +92,6 @@ export class AudioHandler {
 
     /** Sets up subscriptions for IPC / StorageManager */
     static async setupIPC() {
-        // Settings
         StorageManager.subscribe('convolver_mix', 0, (value: number) => {
             (AudioHandler.modules.get('convolver') as Convolver).setMix(value);
         });
@@ -102,16 +101,9 @@ export class AudioHandler {
         StorageManager.subscribe('pre-amp', 1, (value: number) => {
             (AudioHandler.modules.get('volume') as Volume).setVolume(value);
         });
-
-        // Equalizer
-        const eq = AudioHandler.modules.get('equalizer') as Equalizer;
-        if (eq) {
-            for (let i = 0; i < eq.eqBands.length; i++) {
-                const freq = eq.eqBands[i];
-                const key = `band-${freq}`;
-                StorageManager.subscribe(key, 0, (value: number) => eq.setFrequencyGain(i, value));
-            }
-        }
+        StorageManager.subscribe('equalizer', Array(9).fill(0), (value: number[]) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value);
+        })
     }
 
     /** Loads a plugin into the audio chain */

@@ -39,10 +39,10 @@ export class Equalizer extends AudioModule {
         return band;
     }
 
-    setFrequencyGain(index: number, gain: number) {
-        if (!Number.isFinite(gain)) return;
-        if (index < 0 || index >= this.eqBandNodes.length) return;
-        this.eqBandNodes[index].gain.value = gain;
+    setBandGains(value: number[]) {
+        for(const [index, gain] of value.entries()) {
+            this.eqBandNodes[index].gain.value = gain;
+        }
     }
 
 }
