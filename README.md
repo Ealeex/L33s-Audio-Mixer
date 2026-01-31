@@ -10,6 +10,7 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
 - **9-band Equalizer**: Fine-tune audio frequencies from 32Hz to 8kHz.
 - **Reverb Slider**: Simulates a car's interior using a built-in impulse response sample.
 - **Stereo Widener**: Puts you in the song.
+- **Basic Presets**: Change all of the settings at the same time.
 
 ## Installation
 1. Clone or download this repository.
@@ -17,36 +18,8 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
    ```
    npm install
    npm run build
+   npm run start (Requires Firefox configured with a profile named "Testing" to be setup.)
    ```
 3. Load the `src/` directory as an unpacked extension in your browser:
    - **Firefox**: Use [web-ext](https://github.com/mozilla/web-ext) or load as a temporary add-on.
    - **Chrome**: Go to `chrome://extensions`, enable Developer Mode, and load the `src/` folder.
-
-## Usage
-- Click the extension icon to open the popup and adjust audio settings.
-- All audio and video elements on web pages will be processed in real time.
-- Settings are saved and applied automatically.
-
-## Project Structure
-- `src/manifest.json` – Extension manifest (permissions, scripts, popup, icons)
-- `src/content_scripts/inject.ts` – Main audio processing logic (equalizer, reverb)
-- `src/popup/` – Popup UI (HTML, CSS, JS/TS)
-- `src/content_scripts/impulse.wav` – Impulse response sample for the reverb
-- `src/icons/` – Extension icons
-
-## Development
-- TypeScript is used for main logic and popup scripts.
-- Build and run scripts are defined in `package.json`.
-- Uses `webextension-polyfill` for cross-browser compatibility.
-
-## Metadata
-- **Name:** L33s-Audio-Mixer
-- **Version:** 1.0.1
-- **Description:** Simple audio equalizer with built in reverb slider. The reverb slider is meant to simulate a car's interior.
-- **Author:** Ealeex
-- **License:** MPL-2.0
-- **Repository:** [GitHub](https://github.com/Ealeex/L33s-Audio-Mixer)
-- **Keywords:** photos-music-videos, tabs
-
----
-**Author:** Ealeex
