@@ -29,11 +29,11 @@ export class WebEqualizer {
     private async setupStorage() {
         const result = await Runtime.storage.local.get(this.storageName);
         const stored: number[] = Array.isArray(result[this.storageName]) ? result[this.storageName] : this.bands.map(() => this.default);
-        this.setValue(stored);
-        this.sliders.forEach(slider => slider.addEventListener("input", () => this.sendData()));
+        this.setValue(stored, false);
+        this.sliders.forEach(slider => slider.addEventListener("input", () => this.sendData(true)));
     }
 
-    private async sendData() {
+    private async sendData(manual: boolean = false) {
         const values = this.sliders.map(s => parseFloat(s.value));
         // Logger.log(values);
         if (values.some(v => Number.isNaN(v))) return;
@@ -43,6 +43,7 @@ export class WebEqualizer {
             Logger.log({ action: `set-${this.storageName}`, value: values });
             await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value: values });
         } catch {}
+        if (manual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
     }
 
     private createElement() {
@@ -72,9 +73,13 @@ export class WebEqualizer {
         document.getElementById("wrapper")!.appendChild(container);
     }
 
-    setValue(values: number[]) {
+    setValue(values: number[], manual: boolean = false) {
         values = values.map((v, i) => Math.max(Math.min(v, this.max), this.min));
         values.forEach((v, i) => this.sliders[i].value = v.toString());
-        this.sendData();
+        this.sendData(manual);
+    }
+
+    getValue(): number[] {
+        return this.sliders.map(s => parseFloat(s.value));
     }
 }

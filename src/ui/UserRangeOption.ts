@@ -4,6 +4,7 @@ export class UserRangeOption {
 
     readonly name:string;
     private storageName:string;
+    private triggerPresetOnManual: boolean;
 
     private containerElem!:HTMLDivElement;
     private inputElem!:HTMLInputElement;
@@ -13,9 +14,10 @@ export class UserRangeOption {
     private step:number;
     private default:number;
 
-    constructor(opts:{name:string, min?:number, max?:number, step?:number, default?:number}) {
+    constructor(opts:{name:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean}) {
         this.name = opts.name;
         this.storageName = this.name.toLowerCase().split(' ').join('_');
+        this.triggerPresetOnManual = opts.triggerPresetOnManual ?? true;
         this.min = opts.min ?? 0;
         this.max = opts.max ?? 1;
         this.step = opts.step ?? 0.01;
@@ -35,12 +37,12 @@ export class UserRangeOption {
         let result = await Runtime.storage.local.get(this.storageName);
         this.inputElem.value = (typeof result[this.storageName] === 'number' ? result[this.storageName] : this.default).toString();
 
-        // Add Listener
-        this.inputElem.addEventListener('input', () => { this.sendData(); });
+        // Add Listener (user input should be treated as manual unless opted out)
+        this.inputElem.addEventListener('input', () => { this.sendData(this.triggerPresetOnManual); });
 
     }
 
-    private async sendData() {
+    private async sendData(manual=false) {
         const value = parseFloat(this.inputElem.value);
         if (Number.isNaN(value)) return;
         await Runtime.storage.local.set({ [this.storageName]: value });
@@ -48,6 +50,7 @@ export class UserRangeOption {
         for (const tab of tabs) if (tab.id != null) try {
             await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value });
         } catch {}
+        if (manual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
     }
 
     private createElement() {
@@ -71,7 +74,12 @@ export class UserRangeOption {
     setValue(value:number) {
         value = Math.max(Math.min(value, this.max), this.min);
         this.inputElem.value = value.toString();
-        this.sendData();
+        // Programmatic changes should persist but not mark as manual adjustments
+        this.sendData(false);
+    }
+
+    getValue(): number {
+        return parseFloat(this.inputElem.value);
     }
 
 }
