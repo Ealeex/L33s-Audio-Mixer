@@ -23,3 +23,9 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
 3. Load the `src/` directory as an unpacked extension in your browser:
    - **Firefox**: Use [web-ext](https://github.com/mozilla/web-ext) or load as a temporary add-on.
    - **Chrome**: Go to `chrome://extensions`, enable Developer Mode, and load the `src/` folder.
+
+## Signing
+
+Set the `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` environment variables to your
+Mozilla Add-ons API credentials, then run `npm run sign`. Do not put credentials
+in `package.json` or commit them to the repository.
