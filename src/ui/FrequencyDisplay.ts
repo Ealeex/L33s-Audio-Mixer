@@ -1,5 +1,3 @@
-import Runtime from "../util/Runtime";
-
 export class FrequencyDisplay {
 
     canvas!: HTMLCanvasElement;
@@ -8,45 +6,49 @@ export class FrequencyDisplay {
     constructor() {
         this.canvas = this.createCanvas();
         this.ctx = this.canvas.getContext('2d')!;
-        this.setup();
     }
     
     createCanvas() {
         let canvas = document.createElement('canvas') as HTMLCanvasElement;
         canvas.width = 300;
         canvas.height = 100;
-        document.getElementById('wrapper')!.appendChild(canvas);
+        canvas.classList.add('frequency-canvas');
+        document.getElementById('visualizers')!.appendChild(canvas);
         return canvas; 
     }
 
-    setup() {
-        let intervalId = setInterval(()=>{
-            Runtime.storage.local.get('analyserData', (result) => {
-                const frequencies = result.analyserData as number[];
-                if (frequencies) this.draw(frequencies);
-            })
-        },1000/144)
-    }
-
     draw(frequencyData: number[]) {
+        if (frequencyData.length === 0) return;
 
         this.ctx.fillStyle = 'black';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.beginPath();
 
-        const minDb = -100;
-        const maxDb = 0;
+        const finiteData = frequencyData.filter(Number.isFinite);
+        if (finiteData.length === 0) return;
+        const dataMin = Math.min(...finiteData);
+        const dataMax = Math.max(...finiteData);
+        const dataRange = Math.max(dataMax - dataMin, 12);
+        const padding = dataRange * 0.12;
+        const minDb = dataMin - padding;
+        const maxDb = dataMax + padding;
+        const plotHeight = this.canvas.height;
         const binCount = frequencyData.length;
+        let hasStartedPath = false;
 
         for (let i = 0; i < binCount; i++) {
             const x = (i / (binCount - 1)) * this.canvas.width;
+            if (!Number.isFinite(frequencyData[i])) continue;
             const yNorm = (frequencyData[i] - minDb) / (maxDb - minDb);
-            const y = this.canvas.height - yNorm * this.canvas.height;
-            if (i === 0) this.ctx.moveTo(x, y);
+            const y = plotHeight - yNorm * plotHeight;
+            if (!hasStartedPath) {
+                this.ctx.moveTo(x, y);
+                hasStartedPath = true;
+            }
             else this.ctx.lineTo(x, y);
         }
 
-        this.ctx.strokeStyle = 'white';
+        this.ctx.strokeStyle = getComputedStyle(this.canvas).getPropertyValue('--accent').trim() || '#e5777c';
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
     }

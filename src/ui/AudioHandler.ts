@@ -7,8 +7,11 @@ import { StereoWidener } from "../modules/StereoWidener";
 import { Volume } from "../modules/Volume";
 import { Logger } from "../util/Logger";
 import { StorageManager } from "../util/StorageManager";
+import Runtime from "../util/Runtime";
 
 export class AudioHandler {
+    private static readonly visualizerPortName = 'audio-visualizer';
+    private static visualizerSettings = { frequency: true, waveform: true };
 
     // Storage
     static audioContext = new AudioContext();
@@ -42,6 +45,8 @@ export class AudioHandler {
 
         // Setup Communication
         await AudioHandler.setupIPC();
+        await AudioHandler.setupVisualizerStream();
+        AudioHandler.isInitialized = true;
     }
 
     /** Ensures the audio context is running */
@@ -104,6 +109,50 @@ export class AudioHandler {
         StorageManager.subscribe('equalizer', Array(9).fill(0), (value: number[]) => {
             (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value);
         })
+    }
+
+    private static async setupVisualizerStream() {
+        const result = await Runtime.storage.local.get('visualizer-settings');
+        const settings = result['visualizer-settings'];
+        if (settings && typeof settings === 'object') {
+            AudioHandler.visualizerSettings = {
+                frequency: settings.frequency !== false,
+                waveform: settings.waveform !== false
+            };
+        }
+        Runtime.storage.onChanged.addListener((changes, areaName) => {
+            if (areaName !== 'local' || !changes['visualizer-settings']) return;
+            const settings = changes['visualizer-settings'].newValue;
+            if (!settings || typeof settings !== 'object') return;
+            AudioHandler.visualizerSettings = {
+                frequency: settings.frequency !== false,
+                waveform: settings.waveform !== false
+            };
+        });
+
+        Runtime.runtime.onConnect.addListener(port => {
+            if (port.name !== AudioHandler.visualizerPortName) return;
+
+            const frequencyAnalyser = AudioHandler.modules.get('freqAnalyser') as FrequencyAnalyser | undefined;
+            const waveformAnalyser = AudioHandler.modules.get('waveAnalyser') as WaveformAnalyser | undefined;
+            if (!frequencyAnalyser || !waveformAnalyser) {
+                const error = new Error('Visualizer analyzers are unavailable.');
+                Logger.logErr(error);
+                port.disconnect();
+                return;
+            }
+
+            const intervalId = window.setInterval(() => {
+                if (document.visibilityState !== 'visible'
+                    || (!AudioHandler.visualizerSettings.frequency && !AudioHandler.visualizerSettings.waveform)) return;
+                port.postMessage({
+                    frequency: AudioHandler.visualizerSettings.frequency ? frequencyAnalyser.getVisualData() : null,
+                    waveform: AudioHandler.visualizerSettings.waveform ? waveformAnalyser.getVisualData() : null
+                });
+            }, 1000 / 144);
+
+            port.onDisconnect.addListener(() => window.clearInterval(intervalId));
+        });
     }
 
     /** Loads a plugin into the audio chain */

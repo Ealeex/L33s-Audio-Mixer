@@ -1,12 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Audio Convolver Mix</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101112">
+  <title>L33's Audio Mixer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div id="wrapper"></div>
+  <main class="popup-shell">
+    <header class="popup-header">
+      <a class="brand" href="#" aria-label="L33's Audio Mixer">
+        <span class="brand-mark">L</span>
+        <span class="brand-copy"><strong>L33's Audio</strong><small>PERSONAL SOUND STUDIO</small></span>
+      </a>
+      <button id="options-button" class="settings-button" type="button" aria-label="Open settings" title="Open settings">⚙</button>
+    </header>
+
+    <section class="visualizer-panel">
+      <div class="panel-heading"><span class="eyebrow">SIGNAL</span><span class="live-indicator"><i></i> LIVE</span></div>
+      <div id="visualizers" class="visualizers"></div>
+    </section>
+
+    <section class="controls-panel">
+      <div class="section-heading">
+        <div><span class="eyebrow">YOUR MIX</span><h1>Fine-tune the sound</h1></div>
+      </div>
+      <div id="wrapper"></div>
+    </section>
+
+    <footer class="preset-footer">
+      <div id="preset-control" class="preset-control"></div>
+      <button id="save-preset-button" class="save-button" type="button" title="Save current mix as a preset" aria-label="Save current mix as a preset">＋</button>
+    </footer>
+  </main>
+
+  <dialog id="save-preset-dialog" class="save-dialog">
+    <form id="save-preset-form">
+      <span class="eyebrow">SOUND PROFILE</span>
+      <h2>Save this mix</h2>
+      <label for="preset-name">Give it a name</label>
+      <input id="preset-name" name="preset-name" type="text" maxlength="40" placeholder="Late night focus" required>
+      <p id="preset-message" class="dialog-message" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="cancel-save-preset" class="dialog-cancel" type="button">Cancel</button>
+        <button class="dialog-save" type="submit">Save preset</button>
+      </div>
+    </form>
+  </dialog>
   <script src="popup.js"></script>
 </body>
 </html>

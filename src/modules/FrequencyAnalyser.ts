@@ -1,5 +1,4 @@
 import { AudioModule } from "./AudioModule";
-import { StorageManager } from "../util/StorageManager";
 
 export class FrequencyAnalyser extends AudioModule {
 
@@ -9,9 +8,7 @@ export class FrequencyAnalyser extends AudioModule {
     private fftSize = 16384;
     private visualBinCount = 256;
 
-    // Storage
-    private isVisible = true;
-    private data!: Float32Array;
+    private data!: Float32Array<ArrayBuffer>;
 
     // Nodes
     analyserNode!: AnalyserNode;  
@@ -26,31 +23,17 @@ export class FrequencyAnalyser extends AudioModule {
     }
 
     protected async setup() {
-
-        // Visibililty
-        this.isVisible = document.visibilityState === 'visible';
-        document.addEventListener('visibilitychange', () => {
-            this.isVisible = document.visibilityState === 'visible';
-        });
-
         this.analyserNode.fftSize = this.fftSize;
         this.analyserNode.minDecibels = -100;
-        this.analyserNode.maxDecibels = -30;
+        this.analyserNode.maxDecibels = 0;
         this.analyserNode.smoothingTimeConstant = 0.25;
 
         this.data = new Float32Array(this.analyserNode.frequencyBinCount);
-
-        window.setInterval(() => {
-            if(!this.isVisible) return;
-            (this.analyserNode.getFloatFrequencyData as unknown as
-                (array: Float32Array) => void)(this.data);
-            this.sendAnalyserData_FreqDomain();
-        }, Math.round(1000 / 144));
-
     }
 
-    private sendAnalyserData_FreqDomain() {
-        StorageManager.set('analyserData', Array.from(this.getLogFrequencyData(this.visualBinCount)))
+    getVisualData(): number[] {
+        this.analyserNode.getFloatFrequencyData(this.data);
+        return Array.from(this.getLogFrequencyData(this.visualBinCount));
     }
 
     private getLogFrequencyData(logBinCount: number): Float32Array {

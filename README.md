@@ -26,6 +26,18 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
 
 ## Signing
 
-Set the `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET` environment variables to your
-Mozilla Add-ons API credentials, then run `npm run sign`. Do not put credentials
-in `package.json` or commit them to the repository.
+Copy `.env.example` to `.env`, set `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET`
+to your Mozilla Add-ons API credentials, then run `npm run sign`. The npm
+scripts load `.env` with Node.js, so use Node.js 22.9 or newer. The `.env` file
+is ignored by Git; never commit credentials to the repository.
+
+Run `npm run sign:dry-run` to verify that both credential variables are present,
+build the extension, and lint it locally. This does not contact AMO or validate
+the credentials; `npm run sign` submits the extension for signing.
+
+## Personalizing the mixer
+
+Open the extension popup's settings button to manage visualizer visibility and
+presets. Save a named preset from the popup or options page; saved presets are
+available in the popup's preset selector. Preset and visualizer preferences
+are stored in the browser and can be applied or removed from the options page.

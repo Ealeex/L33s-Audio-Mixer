@@ -1,5 +1,3 @@
-import Runtime from "../util/Runtime";
-
 export class WaveformDisplay {
 
     canvas!: HTMLCanvasElement;
@@ -8,43 +6,49 @@ export class WaveformDisplay {
     constructor() {
         this.canvas = this.createCanvas();
         this.ctx = this.canvas.getContext('2d')!;
-        this.setup();
     }
 
     createCanvas() {
         let canvas = document.createElement('canvas') as HTMLCanvasElement;
         canvas.width = 300;
         canvas.height = 100;
-        document.getElementById('wrapper')!.appendChild(canvas);
+        canvas.classList.add('waveform-canvas');
+        document.getElementById('visualizers')!.appendChild(canvas);
         return canvas; 
     }
 
-    setup() {
-        let intervalId = setInterval(()=>{
-            Runtime.storage.local.get('waveformData', (result) => {
-                const waveform = result.waveformData as number[];
-                if(waveform) this.draw(waveform);
-            })
-        },1000/144)
-    }
-
     draw(waveform: number[]) {
+        if (waveform.length === 0) return;
         this.ctx.fillStyle = 'black';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.beginPath();
 
+        const finiteData = waveform.filter(Number.isFinite);
+        if (finiteData.length === 0) return;
+        const dataMin = Math.min(...finiteData);
+        const dataMax = Math.max(...finiteData);
+        const dataRange = Math.max(dataMax - dataMin, 0.02);
+        const padding = dataRange * 0.1;
+        const minValue = dataMin - padding;
+        const maxValue = dataMax + padding;
+        const plotHeight = this.canvas.height;
         const binCount = waveform.length;
+        let hasStartedPath = false;
 
         for (let i = 0; i < binCount; i++) {
             const x = (i / (binCount - 1)) * this.canvas.width;
-            // Normalize waveform from -1..1 to canvas height
-            const y = ((1 - waveform[i]) / 2) * this.canvas.height;
+            if (!Number.isFinite(waveform[i])) continue;
+            const yNorm = (waveform[i] - minValue) / (maxValue - minValue);
+            const y = plotHeight - yNorm * plotHeight;
 
-            if (i === 0) this.ctx.moveTo(x, y);
+            if (!hasStartedPath) {
+                this.ctx.moveTo(x, y);
+                hasStartedPath = true;
+            }
             else this.ctx.lineTo(x, y);
         }
 
-        this.ctx.strokeStyle = 'lime';
+        this.ctx.strokeStyle = getComputedStyle(this.canvas).getPropertyValue('--accent').trim() || '#e5777c';
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
     }

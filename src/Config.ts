@@ -2,6 +2,7 @@ export type Preset = {
     convolver: number;
     stereoWidener: number;
     equalizer: number[];
+    volume?: number;
 }
 
 export class Config {
@@ -12,19 +13,21 @@ export class Config {
         'Default': {
             convolver: 0,
             stereoWidener: 1,
-            equalizer: [0,0,0,0,0,0,0,0,0]
+            equalizer: [0,0,0,0,0,0,0,0,0],
+            volume: 1
         },
         'Bass-Boosted': {
             convolver: 0,
             stereoWidener: 1,
-            equalizer: [10,10,10,5,0,0,5,10,10]
+            equalizer: [10,10,10,5,0,0,5,10,10],
+            volume: 1
         },
         'Car Interior': {
             convolver: 0.8,
             stereoWidener: 1,
-            equalizer: [15,15,15,5,0,0,5,10,10]
+            equalizer: [15,15,15,5,0,0,5,10,10],
+            volume: 1
         }
     }
 
 }
-

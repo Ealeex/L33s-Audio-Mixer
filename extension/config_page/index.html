@@ -3,10 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Equalizer Options</title>
+    <meta name="theme-color" content="#101112">
+    <title>Audio Mixer Settings</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header class="topbar">
+        <a class="brand" href="#overview" aria-label="L33's Audio Mixer home">
+            <span class="brand-mark">L</span>
+            <span><strong>L33's Audio</strong><small>PERSONAL SOUND STUDIO</small></span>
+        </a>
+        <nav class="topnav" aria-label="Settings sections">
+            <a class="active" href="#overview">Overview</a>
+            <a href="#presets">Presets</a>
+            <a href="#settings">Settings</a>
+        </nav>
+        <span class="status-pill"><i></i> LOCAL AUDIO</span>
+    </header>
+
+    <main class="page-shell">
+        <section id="overview" class="hero">
+            <div class="section-title">
+                <span class="section-index">01</span>
+                <div>
+                    <p class="eyebrow">YOUR SOUND, YOUR RULES</p>
+                    <h1>Shape the way<br>you <em>listen.</em></h1>
+                </div>
+            </div>
+            <p class="hero-copy">Fine-tune your listening setup, keep your favorite mixes, and make the experience yours.</p>
+        </section>
+
+        <section class="summary-grid" aria-label="Extension overview">
+            <article class="summary-card">
+                <p class="eyebrow">PRESETS</p>
+                <strong>Built around you</strong>
+                <span>Save and organize your own sound profiles.</span>
+            </article>
+            <article class="summary-card">
+                <p class="eyebrow">VISUALIZERS</p>
+                <strong>Live, when you want it</strong>
+                <span>Choose which audio displays appear in the popup.</span>
+            </article>
+            <article class="summary-card accent-card">
+                <p class="eyebrow">PRIVACY</p>
+                <strong>Processed on this device</strong>
+                <span>Audio stays in your browser and is not transmitted.</span>
+            </article>
+        </section>
+
+        <section id="settings" class="content-section">
+            <div class="section-heading">
+                <div class="section-title">
+                    <span class="section-index">02</span>
+                    <div>
+                        <p class="eyebrow">PREFERENCES</p>
+                        <h2>Choose your view</h2>
+                    </div>
+                </div>
+                <span class="section-caption">Changes save automatically</span>
+            </div>
+            <div class="settings-panel">
+                <label class="setting-row" for="frequency-toggle">
+                    <span class="setting-icon">ƒ</span>
+                    <span class="setting-copy">
+                        <strong>Frequency display</strong>
+                        <small>Show the live spectrum in the extension popup.</small>
+                    </span>
+                    <span class="switch">
+                        <input id="frequency-toggle" type="checkbox">
+                        <span class="switch-track"></span>
+                    </span>
+                </label>
+                <label class="setting-row" for="waveform-toggle">
+                    <span class="setting-icon">∿</span>
+                    <span class="setting-copy">
+                        <strong>Waveform display</strong>
+                        <small>Show the live waveform in the extension popup.</small>
+                    </span>
+                    <span class="switch">
+                        <input id="waveform-toggle" type="checkbox">
+                        <span class="switch-track"></span>
+                    </span>
+                </label>
+            </div>
+        </section>
+
+        <section id="presets" class="content-section">
+            <div class="section-heading">
+                <div class="section-title">
+                    <span class="section-index">03</span>
+                    <div>
+                        <p class="eyebrow">SOUND PROFILES</p>
+                        <h2>Your presets</h2>
+                    </div>
+                </div>
+                <span id="preset-count" class="section-caption"></span>
+            </div>
+            <div class="preset-layout">
+                <form id="preset-form" class="save-card">
+                    <p class="eyebrow">SAVE THE MOMENT</p>
+                    <h3>Keep this mix</h3>
+                    <p class="muted">Save the current popup settings under a name you’ll remember.</p>
+                    <label for="new-preset-name">Preset name</label>
+                    <input id="new-preset-name" name="preset-name" type="text" maxlength="40" placeholder="Late night focus" required>
+                    <button class="button button-primary" type="submit">Save current mix <span>↗</span></button>
+                </form>
+                <div id="preset-list" class="preset-list" aria-live="polite"></div>
+            </div>
+        </section>
+
+        <footer class="page-footer">
+            <span>L33'S AUDIO MIXER</span>
+            <span id="status-message" role="status" aria-live="polite"></span>
+            <a href="#overview">Back to top ↑</a>
+        </footer>
+    </main>
     <script src="./options.js"></script>
 </body>
 </html>

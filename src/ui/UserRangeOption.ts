@@ -14,9 +14,9 @@ export class UserRangeOption {
     private step:number;
     private default:number;
 
-    constructor(opts:{name:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean}) {
+    constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean}) {
         this.name = opts.name;
-        this.storageName = this.name.toLowerCase().split(' ').join('_');
+        this.storageName = opts.storageName ?? this.name.toLowerCase().split(' ').join('_');
         this.triggerPresetOnManual = opts.triggerPresetOnManual ?? true;
         this.min = opts.min ?? 0;
         this.max = opts.max ?? 1;

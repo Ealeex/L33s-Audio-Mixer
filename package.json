@@ -4,13 +4,15 @@
   "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
   "main": "inject.js",
   "scripts": {
-    "build:content_scripts": "esbuild src/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
-    "build:popup": "esbuild src/popup.ts --bundle --platform=node --format=iife --outfile=extension/popup/popup.js",
-    "build:options": "esbuild src/options.ts --bundle --platform=node --format=iife --outfile=extension/config_page/options.js",
+    "build:content_scripts": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
+    "build:popup": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/popup.ts --bundle --platform=node --format=iife --outfile=extension/popup/popup.js",
+    "build:options": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/options.ts --bundle --platform=node --format=iife --outfile=extension/config_page/options.js",
     "build": "npm run build:content_scripts && npm run build:popup && npm run build:options",
-    "start": "web-ext run -s extension --firefox-profile Testing --url https://www.youtube.com/watch?v=0NDqYZVbpho",
-    "build-ext": "web-ext build -s extension",
-    "sign": "web-ext sign --channel=listed -s extension --amo-metadata=extension/metadata.json"
+    "start": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js run -s extension --firefox-profile Testing --url \"https://www.youtube.com/watch?v=GQ3V50XoLOM&list=PLmFC8ycXOOnCb31tjrzQjlWJbmNxT3HCA\"",
+    "build-ext": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js build -s extension",
+    "sign": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js sign --channel=listed -s extension --amo-metadata=extension/metadata.json",
+    "sign:dry-run": "node --env-file-if-exists=.env -e \"if (!process.env.WEB_EXT_API_KEY || !process.env.WEB_EXT_API_SECRET) { console.error('Missing WEB_EXT_API_KEY or WEB_EXT_API_SECRET in .env or environment'); process.exit(1); } console.log('Signing credentials are configured (values not displayed).')\" && npm run build && node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js lint -s extension",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "photos-music-videos",
@@ -20,15 +22,20 @@
   "license": "MPL-2.0",
   "devDependencies": {
     "@types/chrome": "^0.0.326",
-    "@types/firefox-webext-browser": "^120.0.4"
-  },
-  "dependencies": {
-    "express": "^5.1.0",
-    "web-ext": "^9.2.0",
-    "webextension-polyfill": "^0.12.0"
+    "@types/firefox-webext-browser": "^120.0.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "web-ext": "^10.8.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Ealeex/L33s-Audio-Mixer"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "core-js@2.6.12": true,
+    "core-js@3.6.5": true,
+    "dtrace-provider@0.8.8": true,
+    "spawn-sync@1.0.15": true
   }
 }
