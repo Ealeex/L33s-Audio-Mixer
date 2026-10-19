@@ -4,18 +4,76 @@ import { FrequencyDisplay } from "./ui/FrequencyDisplay";
 import { WaveformDisplay } from "./ui/WaveformDisplay";
 import { PresetManager } from "./ui/PresetManager";
 import { Logger } from "./util/Logger";
-import { Preset } from "./Config";
+import { Config, Preset } from "./Config";
 import Runtime from "./util/Runtime";
-import { getCurrentPreset, savePreset } from "./util/PresetStore";
-import { getEqualizerBands, getEqualizerConfig } from "./util/EqualizerSettings";
+import { applyPreset, getCurrentPreset, getPresets, parsePreset, renamePreset, savePreset, serializePreset } from "./util/PresetStore";
+import { getEqualizerBands, getEqualizerConfig, getEqualizerQs } from "./util/EqualizerSettings";
 
 type VisualizerSettings = { frequency: boolean; waveform: boolean };
 
-function isVisualizerData(message: object): message is { frequency: number[] | null; waveform: number[] | null } {
+function createModuleWidget(options: {
+    title: string;
+    eyebrow: string;
+    actions?: HTMLElement;
+}): { body: HTMLElement; widget: HTMLElement } {
+    const widget = document.createElement("section");
+    widget.className = "audio-module-widget";
+    const header = document.createElement("header");
+    const copy = document.createElement("div");
+    const eyebrow = document.createElement("span");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = options.eyebrow;
+    const title = document.createElement("h2");
+    title.textContent = options.title;
+    copy.append(eyebrow, title);
+    header.append(copy);
+    if (options.actions) header.append(options.actions);
+    const body = document.createElement("div");
+    body.className = "audio-module-body";
+    widget.append(header, body);
+    document.getElementById("wrapper")!.appendChild(widget);
+    return { body, widget };
+}
+
+function createPowerButton(label: string): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "module-power-button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    return button;
+}
+
+function setPowerState(button: HTMLButtonElement, enabled: boolean): void {
+    button.classList.toggle("is-on", enabled);
+    button.setAttribute("aria-pressed", String(enabled));
+}
+
+async function sendSetting(name: string, value: number | boolean, transitionMs = Config.PRESET_TRANSITION_MS): Promise<void> {
+    await Runtime.storage.local.set({ [name]: value });
+    const tabs = await Runtime.tabs.query({});
+    for (const tab of tabs) if (tab.id != null) try {
+        await Runtime.tabs.sendMessage(tab.id, { action: `set-${name}`, value, transitionMs });
+    } catch {}
+}
+
+function isVisualizerData(message: object): message is {
+    frequency: number[] | null;
+    sourceFrequency: number[] | null;
+    waveform: number[] | null;
+    frequencyMinimum: number;
+    frequencyMaximum: number;
+    sampleRate: number;
+} {
     return 'frequency' in message
         && (message.frequency === null || (Array.isArray(message.frequency) && message.frequency.every(value => typeof value === 'number')))
+        && 'sourceFrequency' in message
+        && (message.sourceFrequency === null || (Array.isArray(message.sourceFrequency) && message.sourceFrequency.every(value => typeof value === 'number')))
         && 'waveform' in message
-        && (message.waveform === null || (Array.isArray(message.waveform) && message.waveform.every(value => typeof value === 'number')));
+        && (message.waveform === null || (Array.isArray(message.waveform) && message.waveform.every(value => typeof value === 'number')))
+        && 'frequencyMinimum' in message && typeof message.frequencyMinimum === 'number'
+        && 'frequencyMaximum' in message && typeof message.frequencyMaximum === 'number'
+        && 'sampleRate' in message && typeof message.sampleRate === 'number';
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
@@ -23,12 +81,14 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     const frequencyDisplay = new FrequencyDisplay();
     const waveformDisplay = new WaveformDisplay();
+    let equalizer: WebEqualizer | null = null;
     let visualizerPort: ReturnType<typeof Runtime.tabs.connect> | null = null;
     let activeTabId: number | undefined;
 
     const setVisualizerSettings = (settings: VisualizerSettings) => {
-        frequencyDisplay.canvas.hidden = !settings.frequency;
+        frequencyDisplay.canvas.hidden = true;
         waveformDisplay.canvas.hidden = !settings.waveform;
+        equalizer?.setSpectrumEnabled(settings.frequency);
         if (settings.frequency || settings.waveform) {
             if (visualizerPort || activeTabId == null) return;
             try {
@@ -36,7 +96,14 @@ document.addEventListener('DOMContentLoaded', async() => {
                 visualizerPort = port;
                 port.onMessage.addListener((message: object) => {
                     if (!isVisualizerData(message)) return;
-                    if (message.frequency) frequencyDisplay.draw(message.frequency);
+                    if (message.frequency) {
+                        frequencyDisplay.draw(message.frequency);
+                        equalizer?.setSpectrumData(message.sourceFrequency ?? message.frequency, message.frequency, {
+                            minimumFrequency: message.frequencyMinimum,
+                            maximumFrequency: message.frequencyMaximum,
+                            sampleRate: message.sampleRate
+                        });
+                    }
                     if (message.waveform) waveformDisplay.draw(message.waveform);
                 });
                 port.onDisconnect.addListener(() => {
@@ -75,24 +142,195 @@ document.addEventListener('DOMContentLoaded', async() => {
         });
     });
 
-    const volumeOpt = await new UserRangeOption({name:'Pre-amp', min:0, max:2, step:0.01, default:1}).init();
-    const convolverOpt = await new UserRangeOption({name:'Convolver Mix', step:0.1}).init();
-    const stereoWidthOpt = await new UserRangeOption({name:'Stereo Separation', storageName:'stereo_seperation', min:0, default:1, max:5, step:1}).init();
+    let convolverOpt!: UserRangeOption;
+    const convolverPower = createPowerButton("Toggle convolution");
+    const spatialWidget = createModuleWidget({
+        eyebrow: "SPACE",
+        title: "Spatial",
+        actions: convolverPower
+    });
+
+    const stereoRow = document.createElement("label");
+    stereoRow.className = "setting-toggle-row";
+    const stereoLabel = document.createElement("span");
+    stereoLabel.textContent = "Mono output";
+    const stereoToggle = document.createElement("input");
+    stereoToggle.type = "checkbox";
+    stereoToggle.className = "setting-toggle";
+    const stereoResult = await Runtime.storage.local.get("stereo_seperation");
+    stereoToggle.checked = stereoResult.stereo_seperation === 0;
+    stereoToggle.addEventListener("change", () => {
+        void sendSetting("stereo_seperation", stereoToggle.checked ? 0 : 1);
+        document.dispatchEvent(new CustomEvent("preset:manual-change"));
+    });
+    stereoRow.append(stereoLabel, stereoToggle);
+    spatialWidget.body.appendChild(stereoRow);
+
+    let lastConvolverMix = .5;
+    convolverOpt = await new UserRangeOption({name:'Convolution mix', storageName:'convolver_mix', step:0.1, mount: spatialWidget.body, onValueChanged: value => {
+        if (value > 0) lastConvolverMix = value;
+        setPowerState(convolverPower, value > 0);
+    }}).init();
+    if (convolverOpt.getValue() > 0) lastConvolverMix = convolverOpt.getValue();
+    setPowerState(convolverPower, convolverOpt.getValue() > 0);
+    convolverPower.addEventListener("click", () => convolverOpt.applyPresetValue(convolverOpt.getValue() > 0 ? 0 : lastConvolverMix));
+
     const equalizerBands = await getEqualizerBands();
     const equalizerConfig = await getEqualizerConfig();
-    const equalizer = await new WebEqualizer({
+    const equalizerQs = await getEqualizerQs(equalizerBands.length, equalizerConfig.q);
+    const equalizerActions = document.createElement("div");
+    equalizerActions.className = "module-header-actions";
+    const equalizerPower = createPowerButton("Toggle equalizer");
+    equalizerActions.append(equalizerPower);
+    const equalizerWidget = createModuleWidget({
+        eyebrow: "TONE",
+        title: "Parametric equalizer",
+        actions: equalizerActions
+    });
+    const offsetMount = document.createElement("div");
+    offsetMount.className = "equalizer-offset-control";
+    const equalizerEnabledResult = await Runtime.storage.local.get("equalizer-enabled");
+    let equalizerEnabled = equalizerEnabledResult["equalizer-enabled"] !== false;
+    setPowerState(equalizerPower, equalizerEnabled);
+    equalizer = await new WebEqualizer({
         bands: equalizerBands,
         min: -equalizerConfig.gainRange,
         max: equalizerConfig.gainRange,
-        step: equalizerConfig.gainStep
+        step: equalizerConfig.gainStep,
+        q: equalizerConfig.q,
+        qs: equalizerQs,
+        shelfEndpoints: equalizerConfig.shelfEndpoints,
+        mount: equalizerWidget.body
     }).init();
+    const offsetOpt = await new UserRangeOption({
+        name:'Offset',
+        storageName:'equalizer-offset',
+        min:-20,
+        max:20,
+        step:0.1,
+        default:0,
+        snapToZero:0.6,
+        mount:offsetMount,
+        onValueChanged: value => equalizer?.setOffset(value)
+    }).init();
+    equalizer.bindSideControl(offsetMount);
+    equalizer.setOffset(offsetOpt.getValue());
+    equalizer.setEnabled(equalizerEnabled);
+    equalizer.setSpectrumEnabled(initialVisualizerSettings.frequency);
+    equalizerPower.addEventListener("click", () => {
+        equalizerEnabled = !equalizerEnabled;
+        setPowerState(equalizerPower, equalizerEnabled);
+        equalizer?.setEnabled(equalizerEnabled);
+        void sendSetting("equalizer-enabled", equalizerEnabled);
+    });
 
     const presetManager = await new PresetManager().init();
-    presetManager.valueChanged = (preset: Preset) => {
+    const reflectPreset = (preset: Preset) => {
         convolverOpt.animateToValue(preset.convolver);
-        stereoWidthOpt.animateToValue(preset.stereoWidener);
-        equalizer.animateToValue(preset.equalizer);
+        if (preset.convolver > 0) lastConvolverMix = preset.convolver;
+        setPowerState(convolverPower, preset.convolver > 0);
+        stereoToggle.checked = preset.stereoWidener === 0;
+        offsetOpt.animateToValue(preset.offset);
+        equalizer?.animateOffsetTo(preset.offset);
+        equalizer?.animateToPresetLayout(preset.bands, preset.equalizer, preset.q, preset.shelfEndpoints);
     };
+    presetManager.valueChanged = reflectPreset;
+
+    const transferStatus = document.getElementById("preset-transfer-status")!;
+    const showTransferResult = (button: HTMLButtonElement, message: string, success: boolean) => {
+        transferStatus.textContent = message;
+        button.title = message;
+        button.classList.remove("is-success", "is-error");
+        button.classList.add(success ? "is-success" : "is-error");
+        window.setTimeout(() => button.classList.remove("is-success", "is-error"), 1400);
+    };
+    const copyButton = document.getElementById("copy-preset-button") as HTMLButtonElement;
+    copyButton.addEventListener("click", async () => {
+        try {
+            const payload = serializePreset(presetManager.getSelectedName(), await getCurrentPreset());
+            await navigator.clipboard.writeText(payload);
+            showTransferResult(copyButton, "Preset copied", true);
+        } catch (error) {
+            showTransferResult(copyButton, "Unable to copy preset", false);
+            Logger.logErr("Unable to copy preset:", error);
+        }
+    });
+    const pasteButton = document.getElementById("paste-preset-button") as HTMLButtonElement;
+    const conflictDialog = document.getElementById("preset-conflict-dialog") as HTMLDialogElement;
+    const conflictCopy = document.getElementById("preset-conflict-copy")!;
+    const overwriteConflict = document.getElementById("overwrite-preset-conflict") as HTMLButtonElement;
+    const duplicateConflict = document.getElementById("duplicate-preset-conflict") as HTMLButtonElement;
+    const requestConflictChoice = (name: string, duplicateName: string, canOverwrite: boolean): Promise<"overwrite" | "duplicate" | null> => {
+        conflictCopy.textContent = canOverwrite
+            ? `“${name}” already exists. Replace it, or import this preset as “${duplicateName}”?`
+            : `“${name}” is built in and cannot be replaced. Import this preset as “${duplicateName}” instead?`;
+        overwriteConflict.hidden = !canOverwrite;
+        duplicateConflict.textContent = `Add as ${duplicateName}`;
+        conflictDialog.showModal();
+        return new Promise(resolve => {
+            overwriteConflict.onclick = () => { conflictDialog.close(); resolve("overwrite"); };
+            duplicateConflict.onclick = () => { conflictDialog.close(); resolve("duplicate"); };
+            (document.getElementById("cancel-preset-conflict") as HTMLButtonElement).onclick = () => { conflictDialog.close(); resolve(null); };
+            conflictDialog.oncancel = event => { event.preventDefault(); conflictDialog.close(); resolve(null); };
+        });
+    };
+    pasteButton.addEventListener("click", async () => {
+        try {
+            const imported = parsePreset(await navigator.clipboard.readText());
+            const presets = await getPresets();
+            const base = imported.name || "Imported preset";
+            let name = base;
+            if (Object.hasOwn(presets, name)) {
+                let suffix = 1;
+                let duplicateName: string;
+                do {
+                    const marker = `_${suffix++}`;
+                    duplicateName = `${base.slice(0, 40 - marker.length)}${marker}`;
+                } while (Object.hasOwn(presets, duplicateName));
+                const choice = await requestConflictChoice(name, duplicateName, !Object.hasOwn(Config.Presets, name));
+                if (!choice) return;
+                if (choice === "duplicate") name = duplicateName;
+            }
+            await savePreset(name, imported.preset);
+            await applyPreset(name, imported.preset);
+            await presetManager.refresh(name);
+            reflectPreset(imported.preset);
+            showTransferResult(pasteButton, `Imported “${name}”`, true);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to import preset";
+            showTransferResult(pasteButton, message, false);
+            Logger.logErr("Unable to import preset:", error);
+        }
+    });
+
+    const renameButton = document.getElementById("rename-preset-button") as HTMLButtonElement;
+    const renameDialog = document.getElementById("rename-preset-dialog") as HTMLDialogElement;
+    const renameForm = document.getElementById("rename-preset-form") as HTMLFormElement;
+    const renameInput = document.getElementById("rename-preset-name") as HTMLInputElement;
+    const renameMessage = document.getElementById("rename-preset-message")!;
+    renameButton.addEventListener("click", () => {
+        const selected = presetManager.getSelectedName();
+        if (selected === "Custom" || Object.hasOwn(Config.Presets, selected)) {
+            showTransferResult(renameButton, "Only saved user presets can be renamed", false);
+            return;
+        }
+        renameInput.value = selected;
+        renameMessage.textContent = "";
+        renameDialog.showModal();
+        renameInput.select();
+    });
+    document.getElementById("cancel-rename-preset")!.addEventListener("click", () => renameDialog.close());
+    renameForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        try {
+            const name = await renamePreset(presetManager.getSelectedName(), renameInput.value);
+            await presetManager.refresh(name);
+            renameDialog.close();
+            showTransferResult(renameButton, `Renamed to “${name}”`, true);
+        } catch (error) {
+            renameMessage.textContent = error instanceof Error ? error.message : "Unable to rename preset.";
+        }
+    });
 
     document.getElementById('options-button')!.addEventListener('click', async () => {
         try {

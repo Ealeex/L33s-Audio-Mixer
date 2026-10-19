@@ -7,6 +7,8 @@ export class FrequencyAnalyser extends AudioModule {
     // Config
     private fftSize = 16384;
     private visualBinCount = 256;
+    static readonly visualMinimumFrequency = 30;
+    static readonly visualMaximumFrequency = 12000;
 
     private data!: Float32Array<ArrayBuffer>;
 
@@ -43,8 +45,8 @@ export class FrequencyAnalyser extends AudioModule {
         const nyquist = sampleRate / 2;
 
         // ---- VISUAL TUNING ----
-        const minFreq = 30;
-        const maxFreq = 12000;
+        const minFreq = FrequencyAnalyser.visualMinimumFrequency;
+        const maxFreq = FrequencyAnalyser.visualMaximumFrequency;
         const minDb = -100;
 
         const logMin = Math.log10(minFreq);
@@ -79,15 +81,8 @@ export class FrequencyAnalyser extends AudioModule {
 
             const avg = count > 0 ? sum / count : minDb;
 
-            // Punch + stability
-            let value = max * 0.7 + avg * 0.3;
-
-            // Visual bass lift
-            const freqCenter = Math.sqrt(f0 * f1);
-            const bassBoost = Math.pow(1 - Math.log(freqCenter / maxFreq), 0.6);
-
-            value += Math.max(-30, 20 * Math.log10(bassBoost));
-
+            // Preserve short transients without applying cosmetic frequency weighting.
+            const value = max * 0.7 + avg * 0.3;
             output[i] = isFinite(value) ? value : minDb;
         }
 

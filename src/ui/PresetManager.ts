@@ -8,11 +8,11 @@ export class PresetManager {
     valueChanged: (preset: Preset, name: string) => void = () => {};
     private presets: PresetCollection = {};
 
-    constructor() {
+    constructor(mount: HTMLElement = document.getElementById("preset-control")!, compact = false) {
         this.element = document.createElement("select");
-        this.element.classList.add("preset-select");
+        this.element.classList.add(compact ? "module-preset-select" : "preset-select");
         this.element.setAttribute("aria-label", "Active preset");
-        document.getElementById("preset-control")!.appendChild(this.element);
+        mount.appendChild(this.element);
         this.setupAction();
     }
 
@@ -45,6 +45,10 @@ export class PresetManager {
         this.element.appendChild(customOption);
         this.element.value = selected;
         await Runtime.storage.local.set({ "selected-preset": selected });
+    }
+
+    getSelectedName(): string {
+        return this.element.value;
     }
 
     private setupAction(): void {

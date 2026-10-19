@@ -8,6 +8,10 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
 
 ## Features
 - **9-band Equalizer**: Fine-tune audio frequencies from 32Hz to 8kHz.
+- **Parametric curve editor**: Drag colored nodes across a logarithmic frequency graph with an integrated live spectrum.
+- **Popup EQ controls**: Add or remove bands directly and scroll a band node to adjust that filter's Q.
+- **Extension settings**: EQ master offset and mono/stereo output stay separate from effect widgets.
+- **Effect widgets**: Convolution and parametric EQ have independent illuminated bypass controls.
 - **Reverb Slider**: Simulates a car's interior using a built-in impulse response sample.
 - **Stereo Widener**: Puts you in the song.
 - **Basic Presets**: Change all of the settings at the same time.
@@ -39,9 +43,9 @@ the credentials; `npm run sign` submits the extension for signing.
 
 Open the extension popup's settings button to manage visualizer visibility and
 presets, configure between 2 and 16 custom equalizer band frequencies, and tune
-the global filter Q, gain range, slider increment, and shelf-endpoint behavior.
+the default Q for new bands, gain range, keyboard increment, and shelf-endpoint behavior.
 Save a named preset from the popup or options page; saved presets are available in
-the popup's preset selector. Presets include reverb, stereo width, and the EQ
-curve while intentionally leaving pre-amp volume untouched. Preset changes ease
-the controls and audio into their new values. Preferences are stored locally in
+the popup's global preset selector. Presets include convolution, stereo mode,
+EQ master offset, and the EQ curve, Q, shelf behavior, band count, and exact
+frequencies. Preset changes apply immediately. Preferences are stored locally in
 the browser and can be applied or removed from the options page.

@@ -78,7 +78,8 @@ function setActiveNavigation(nextLink: HTMLAnchorElement, animate: boolean): voi
 
 function presetSummary(preset: Preset): string {
     const average = preset.equalizer.reduce((sum, gain) => sum + gain, 0) / preset.equalizer.length;
-    return `Reverb ${Math.round(preset.convolver * 100)}% · Width ${preset.stereoWidener.toFixed(1)} · EQ ${average >= 0 ? "+" : ""}${average.toFixed(1)} dB`;
+    const averageQ = preset.q.reduce((sum, q) => sum + q, 0) / preset.q.length;
+    return `Reverb ${Math.round(preset.convolver * 100)}% · ${preset.stereoWidener === 0 ? "Mono" : "Stereo"} · Offset ${preset.offset >= 0 ? "+" : ""}${preset.offset.toFixed(1)} dB · ${preset.bands.length} bands · Q avg ${averageQ.toFixed(1)} · EQ ${average >= 0 ? "+" : ""}${average.toFixed(1)} dB`;
 }
 
 function makeButton(label: string, className: string, action: () => void): HTMLButtonElement {

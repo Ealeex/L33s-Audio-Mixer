@@ -3,6 +3,7 @@ import Runtime from "./Runtime";
 
 export const equalizerBandsKey = "equalizer-bands";
 export const equalizerConfigKey = "equalizer-config";
+export const equalizerQsKey = "equalizer-qs";
 
 export type EqualizerConfig = {
     q: number;
@@ -54,9 +55,6 @@ export function validateEqualizerBands(value: unknown): number[] {
     if (bands.some(frequency => !Number.isFinite(frequency) || frequency < 20 || frequency > 20000)) {
         throw new Error("Band frequencies must be between 20 Hz and 20 kHz.");
     }
-    if (bands.some((frequency, index) => index > 0 && frequency <= bands[index - 1])) {
-        throw new Error("Band frequencies must be unique and ordered from low to high.");
-    }
     return bands;
 }
 
@@ -67,6 +65,14 @@ export async function getEqualizerBands(): Promise<number[]> {
     } catch {
         return [...Config.EQ_BANDS];
     }
+}
+
+export async function getEqualizerQs(bandCount: number, defaultQ = defaultEqualizerConfig.q): Promise<number[]> {
+    const result = await Runtime.storage.local.get(equalizerQsKey);
+    const stored = result[equalizerQsKey];
+    if (Array.isArray(stored) && stored.length === bandCount
+        && stored.every(q => typeof q === "number" && q >= .3 && q <= 4)) return [...stored];
+    return Array(bandCount).fill(defaultQ);
 }
 
 export function createLogSpacedBands(count: number, minimum = 32, maximum = 8000): number[] {
@@ -80,15 +86,19 @@ export function remapEqualizerGains(sourceBands: number[], sourceGains: number[]
     if (sourceBands.length !== sourceGains.length || sourceBands.length === 0) {
         return targetBands.map(() => 0);
     }
+    const sorted = sourceBands.map((frequency, index) => ({ frequency, gain: sourceGains[index] }))
+        .sort((a, b) => a.frequency - b.frequency);
+    const frequencies = sorted.map(item => item.frequency);
+    const gains = sorted.map(item => item.gain);
     return targetBands.map(frequency => {
-        if (frequency <= sourceBands[0]) return sourceGains[0];
-        const lastIndex = sourceBands.length - 1;
-        if (frequency >= sourceBands[lastIndex]) return sourceGains[lastIndex];
-        const upperIndex = sourceBands.findIndex(sourceFrequency => sourceFrequency >= frequency);
+        if (frequency <= frequencies[0]) return gains[0];
+        const lastIndex = frequencies.length - 1;
+        if (frequency >= frequencies[lastIndex]) return gains[lastIndex];
+        const upperIndex = frequencies.findIndex(sourceFrequency => sourceFrequency >= frequency);
         const lowerIndex = upperIndex - 1;
-        const lower = Math.log(sourceBands[lowerIndex]);
-        const upper = Math.log(sourceBands[upperIndex]);
+        const lower = Math.log(frequencies[lowerIndex]);
+        const upper = Math.log(frequencies[upperIndex]);
         const position = (Math.log(frequency) - lower) / (upper - lower);
-        return sourceGains[lowerIndex] + (sourceGains[upperIndex] - sourceGains[lowerIndex]) * position;
+        return gains[lowerIndex] + (gains[upperIndex] - gains[lowerIndex]) * position;
     });
 }

@@ -17,22 +17,30 @@
       <button id="options-button" class="settings-button" type="button" aria-label="Open settings" title="Open settings">⚙</button>
     </header>
 
+    <section class="preset-footer global-preset-bar" aria-label="Global preset">
+      <div id="preset-control" class="preset-control"></div>
+      <button id="copy-preset-button" class="save-button transfer-button" type="button" title="Copy current preset" aria-label="Copy current preset">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h11v11H8zM5 16H4V5h11v1"/></svg>
+      </button>
+      <button id="paste-preset-button" class="save-button transfer-button" type="button" title="Paste and apply preset" aria-label="Paste and apply preset">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6M9 3h6v4H9zM8 5H6v16h12V5h-2M9 14l2 2 4-5"/></svg>
+      </button>
+      <button id="rename-preset-button" class="save-button transfer-button" type="button" title="Rename selected preset" aria-label="Rename selected preset">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 19 3.5-.8L19 7.7 16.3 5 5.8 15.5zM14.8 6.5l2.7 2.7"/></svg>
+      </button>
+      <button id="save-preset-button" class="save-button" type="button" title="Save current mix as a preset" aria-label="Save current mix as a preset">＋</button>
+      <span id="preset-transfer-status" class="sr-only" aria-live="polite"></span>
+    </section>
+
     <section class="visualizer-panel">
       <div class="panel-heading"><span class="eyebrow">SIGNAL</span><span class="live-indicator"><i></i> LIVE</span></div>
       <div id="visualizers" class="visualizers"></div>
     </section>
 
     <section class="controls-panel">
-      <div class="section-heading">
-        <div><span class="eyebrow">YOUR MIX</span><h1>Fine-tune the sound</h1></div>
-      </div>
       <div id="wrapper"></div>
     </section>
 
-    <footer class="preset-footer">
-      <div id="preset-control" class="preset-control"></div>
-      <button id="save-preset-button" class="save-button" type="button" title="Save current mix as a preset" aria-label="Save current mix as a preset">＋</button>
-    </footer>
   </main>
 
   <dialog id="save-preset-dialog" class="save-dialog">
@@ -47,6 +55,31 @@
         <button class="dialog-save" type="submit">Save preset</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="rename-preset-dialog" class="save-dialog">
+    <form id="rename-preset-form">
+      <span class="eyebrow">SOUND PROFILE</span>
+      <h2>Rename preset</h2>
+      <label for="rename-preset-name">New name</label>
+      <input id="rename-preset-name" type="text" maxlength="40" required>
+      <p id="rename-preset-message" class="dialog-message" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button id="cancel-rename-preset" type="button">Cancel</button>
+        <button class="dialog-save" type="submit">Rename</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="preset-conflict-dialog" class="save-dialog compact-dialog">
+    <span class="eyebrow">PRESET EXISTS</span>
+    <h2 id="preset-conflict-title">Replace this preset?</h2>
+    <p id="preset-conflict-copy" class="conflict-copy"></p>
+    <div class="dialog-actions">
+      <button id="cancel-preset-conflict" type="button">Cancel</button>
+      <button id="duplicate-preset-conflict" type="button">Add as copy</button>
+      <button id="overwrite-preset-conflict" class="dialog-save" type="button">Overwrite</button>
+    </div>
   </dialog>
   <script src="popup.js"></script>
 </body>

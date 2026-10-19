@@ -14,8 +14,11 @@ export class UserRangeOption {
     private max:number;
     private step:number;
     private default:number;
+    private mount: HTMLElement;
+    private onValueChanged: (value: number) => void;
+    private snapToZero: number;
 
-    constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean}) {
+    constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean, mount?:HTMLElement, onValueChanged?:(value:number)=>void, snapToZero?:number}) {
         this.name = opts.name;
         this.storageName = opts.storageName ?? this.name.toLowerCase().split(' ').join('_');
         this.triggerPresetOnManual = opts.triggerPresetOnManual ?? true;
@@ -23,6 +26,9 @@ export class UserRangeOption {
         this.max = opts.max ?? 1;
         this.step = opts.step ?? 0.01;
         this.default = opts.default ?? 0.5;
+        this.mount = opts.mount ?? document.getElementById('wrapper')!;
+        this.onValueChanged = opts.onValueChanged ?? (() => {});
+        this.snapToZero = opts.snapToZero ?? 0;
 
     }
 
@@ -43,13 +49,18 @@ export class UserRangeOption {
 
     }
 
-    private async sendData(manual=false) {
-        const value = parseFloat(this.inputElem.value);
+    private async sendData(manual=false, transitionMs=0) {
+        let value = parseFloat(this.inputElem.value);
         if (Number.isNaN(value)) return;
+        if (this.snapToZero > 0 && Math.abs(value) <= this.snapToZero) {
+            value = 0;
+            this.inputElem.value = "0";
+        }
+        this.onValueChanged(value);
         await Runtime.storage.local.set({ [this.storageName]: value });
         const tabs = await Runtime.tabs.query({});
         for (const tab of tabs) if (tab.id != null) try {
-            await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value });
+            await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value, transitionMs });
         } catch {}
         if (manual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
     }
@@ -69,27 +80,37 @@ export class UserRangeOption {
         this.inputElem.value = this.default.toString();
         this.inputElem.classList.add('option-range');
         this.containerElem.appendChild(this.inputElem);
-        document.getElementById('wrapper')!.appendChild(this.containerElem);
+        this.mount.appendChild(this.containerElem);
     }
 
     setValue(value:number) {
         value = Math.max(Math.min(value, this.max), this.min);
         this.inputElem.value = value.toString();
         // Programmatic changes should persist but not mark as manual adjustments
-        this.sendData(false);
+        void this.sendData(false);
     }
 
     animateToValue(value: number, durationMs = Config.PRESET_TRANSITION_MS): void {
         const target = Math.max(Math.min(value, this.max), this.min);
-        const start = this.getValue();
-        const startedAt = performance.now();
-        const animate = (now: number) => {
-            const progress = Math.min(1, (now - startedAt) / durationMs);
-            const eased = progress * progress * progress * (progress * (progress * 6 - 15) + 10);
-            this.inputElem.value = (start + (target - start) * eased).toString();
-            if (progress < 1) requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
+        void durationMs;
+        this.inputElem.value = target.toString();
+    }
+
+    applyPresetValue(value: number, durationMs = Config.PRESET_TRANSITION_MS): void {
+        this.animateToValue(value, durationMs);
+        const target = Math.max(Math.min(value, this.max), this.min);
+        this.onValueChanged(target);
+        void Runtime.storage.local.set({ [this.storageName]: target });
+        void Runtime.tabs.query({}).then(async tabs => {
+            for (const tab of tabs) if (tab.id != null) try {
+                await Runtime.tabs.sendMessage(tab.id, {
+                    action: `set-${this.storageName}`,
+                    value: target,
+                    transitionMs: durationMs
+                });
+            } catch {}
+        });
+        if (this.triggerPresetOnManual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
     }
 
     getValue(): number {

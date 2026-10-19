@@ -4,11 +4,10 @@ import { Convolver } from "../modules/Convolver";
 import { FrequencyAnalyser } from "../modules/FrequencyAnalyser";
 import { WaveformAnalyser } from "../modules/WaveformAnalyser";
 import { StereoWidener } from "../modules/StereoWidener";
-import { Volume } from "../modules/Volume";
 import { Logger } from "../util/Logger";
 import { StorageManager } from "../util/StorageManager";
 import Runtime from "../util/Runtime";
-import { getEqualizerBands, getEqualizerConfig } from "../util/EqualizerSettings";
+import { getEqualizerBands, getEqualizerConfig, getEqualizerQs } from "../util/EqualizerSettings";
 
 export class AudioHandler {
     private static readonly visualizerPortName = 'audio-visualizer';
@@ -39,12 +38,13 @@ export class AudioHandler {
         // Load Plugins
         const equalizerBands = await getEqualizerBands();
         const equalizerConfig = await getEqualizerConfig();
-        await AudioHandler.loadPlugin('equalizer', new Equalizer(equalizerBands, equalizerConfig));
+        const equalizerQs = await getEqualizerQs(equalizerBands.length, equalizerConfig.q);
+        await AudioHandler.loadPlugin('sourceFreqAnalyser', new FrequencyAnalyser());
+        await AudioHandler.loadPlugin('equalizer', new Equalizer(equalizerBands, equalizerConfig, equalizerQs));
         await AudioHandler.loadPlugin('convolver', new Convolver());
         await AudioHandler.loadPlugin('freqAnalyser', new FrequencyAnalyser());
         await AudioHandler.loadPlugin('waveAnalyser', new WaveformAnalyser());
         await AudioHandler.loadPlugin('stereoWidener', new StereoWidener());
-        await AudioHandler.loadPlugin('volume', new Volume());
 
         // Setup Communication
         await AudioHandler.setupIPC();
@@ -106,20 +106,27 @@ export class AudioHandler {
         StorageManager.subscribe('stereo_seperation', 1, (value: number, message) => {
             (AudioHandler.modules.get('stereoWidener') as StereoWidener).setSeparation(value, message?.transitionMs);
         });
-        StorageManager.subscribe('pre-amp', 1, (value: number) => {
-            (AudioHandler.modules.get('volume') as Volume).setVolume(value);
-        });
         const bands = await getEqualizerBands();
+        const equalizerConfig = await getEqualizerConfig();
         StorageManager.subscribe('equalizer-bands', bands, (value: number[]) => {
             (AudioHandler.modules.get('equalizer') as Equalizer).setBands(value);
         });
-        const equalizerConfig = await getEqualizerConfig();
+        const equalizerQs = await getEqualizerQs(bands.length, equalizerConfig.q);
+        StorageManager.subscribe('equalizer-qs', equalizerQs, (value: number[]) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setBandQs(value);
+        });
         StorageManager.subscribe('equalizer-config', equalizerConfig, value => {
             (AudioHandler.modules.get('equalizer') as Equalizer).setConfig(value);
         });
         StorageManager.subscribe('equalizer', Array(bands.length).fill(0), (value: number[], message) => {
             (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value, message?.transitionMs);
-        })
+        });
+        StorageManager.subscribe('equalizer-enabled', true, (value: boolean, message) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setEnabled(value, message?.transitionMs);
+        });
+        StorageManager.subscribe('equalizer-offset', 0, (value: number, message) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setOffset(value, message?.transitionMs);
+        });
     }
 
     private static async setupVisualizerStream() {
@@ -145,8 +152,9 @@ export class AudioHandler {
             if (port.name !== AudioHandler.visualizerPortName) return;
 
             const frequencyAnalyser = AudioHandler.modules.get('freqAnalyser') as FrequencyAnalyser | undefined;
+            const sourceFrequencyAnalyser = AudioHandler.modules.get('sourceFreqAnalyser') as FrequencyAnalyser | undefined;
             const waveformAnalyser = AudioHandler.modules.get('waveAnalyser') as WaveformAnalyser | undefined;
-            if (!frequencyAnalyser || !waveformAnalyser) {
+            if (!frequencyAnalyser || !sourceFrequencyAnalyser || !waveformAnalyser) {
                 const error = new Error('Visualizer analyzers are unavailable.');
                 Logger.logErr(error);
                 port.disconnect();
@@ -158,7 +166,11 @@ export class AudioHandler {
                     || (!AudioHandler.visualizerSettings.frequency && !AudioHandler.visualizerSettings.waveform)) return;
                 port.postMessage({
                     frequency: AudioHandler.visualizerSettings.frequency ? frequencyAnalyser.getVisualData() : null,
-                    waveform: AudioHandler.visualizerSettings.waveform ? waveformAnalyser.getVisualData() : null
+                    sourceFrequency: AudioHandler.visualizerSettings.frequency ? sourceFrequencyAnalyser.getVisualData() : null,
+                    waveform: AudioHandler.visualizerSettings.waveform ? waveformAnalyser.getVisualData() : null,
+                    frequencyMinimum: FrequencyAnalyser.visualMinimumFrequency,
+                    frequencyMaximum: FrequencyAnalyser.visualMaximumFrequency,
+                    sampleRate: AudioHandler.audioContext.sampleRate
                 });
             }, 1000 / 144);
 
