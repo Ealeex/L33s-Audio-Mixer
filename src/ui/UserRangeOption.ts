@@ -1,4 +1,5 @@
 import Runtime from "../util/Runtime";
+import { Config } from "../Config";
 
 export class UserRangeOption {
 
@@ -76,6 +77,19 @@ export class UserRangeOption {
         this.inputElem.value = value.toString();
         // Programmatic changes should persist but not mark as manual adjustments
         this.sendData(false);
+    }
+
+    animateToValue(value: number, durationMs = Config.PRESET_TRANSITION_MS): void {
+        const target = Math.max(Math.min(value, this.max), this.min);
+        const start = this.getValue();
+        const startedAt = performance.now();
+        const animate = (now: number) => {
+            const progress = Math.min(1, (now - startedAt) / durationMs);
+            const eased = progress * progress * progress * (progress * (progress * 6 - 15) + 10);
+            this.inputElem.value = (start + (target - start) * eased).toString();
+            if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
     }
 
     getValue(): number {

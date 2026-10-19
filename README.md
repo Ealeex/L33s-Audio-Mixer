@@ -38,6 +38,10 @@ the credentials; `npm run sign` submits the extension for signing.
 ## Personalizing the mixer
 
 Open the extension popup's settings button to manage visualizer visibility and
-presets. Save a named preset from the popup or options page; saved presets are
-available in the popup's preset selector. Preset and visualizer preferences
-are stored in the browser and can be applied or removed from the options page.
+presets, configure between 2 and 16 custom equalizer band frequencies, and tune
+the global filter Q, gain range, slider increment, and shelf-endpoint behavior.
+Save a named preset from the popup or options page; saved presets are available in
+the popup's preset selector. Presets include reverb, stereo width, and the EQ
+curve while intentionally leaving pre-amp volume untouched. Preset changes ease
+the controls and audio into their new values. Preferences are stored locally in
+the browser and can be applied or removed from the options page.

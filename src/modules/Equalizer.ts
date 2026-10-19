@@ -1,15 +1,21 @@
-import { Config } from "../Config";
 import { AudioModule } from "./AudioModule";
+import { EqualizerConfig } from "../util/EqualizerSettings";
 
 export class Equalizer extends AudioModule {
 
     readonly name = 'Equalizer';
 
     // Config
-    readonly eqBands = Config.EQ_BANDS;
-    
+    private eqBands: number[];
     // Nodes
     private eqBandNodes: BiquadFilterNode[] = [];
+    private config: EqualizerConfig;
+
+    constructor(bands: number[], config: EqualizerConfig) {
+        super();
+        this.eqBands = [...bands];
+        this.config = { ...config };
+    }
 
     protected async setup() {
         
@@ -17,12 +23,11 @@ export class Equalizer extends AudioModule {
         if (this.eqBands.length === 0) throw new Error('Equalizer has no bands');
         let previous: BiquadFilterNode | null = null;
         for (const freq of this.eqBands) {
-            const node = this.createEQNode(freq);
+            const node = this.createEQNode(freq, this.config.q);
             if (previous) previous.connect(node);
             previous = node;
         }
-        this.eqBandNodes[0].type = 'lowshelf';
-        this.eqBandNodes[this.eqBandNodes.length - 1].type = 'highshelf';
+        this.applyFilterTypes();
 
         // Setup for the _Node Interface
         this.entryNode.connect(this.eqBandNodes[0]);
@@ -39,9 +44,42 @@ export class Equalizer extends AudioModule {
         return band;
     }
 
-    setBandGains(value: number[]) {
-        for(const [index, gain] of value.entries()) {
-            this.eqBandNodes[index].gain.value = gain;
+    private applyFilterTypes(): void {
+        this.eqBandNodes.forEach(node => node.type = "peaking");
+        if (this.config.shelfEndpoints && this.eqBandNodes.length >= 2) {
+            this.eqBandNodes[0].type = "lowshelf";
+            this.eqBandNodes[this.eqBandNodes.length - 1].type = "highshelf";
+        }
+    }
+
+    setConfig(config: EqualizerConfig): void {
+        this.config = { ...config };
+        this.eqBandNodes.forEach(node => node.Q.value = config.q);
+        this.applyFilterTypes();
+    }
+
+    setBands(bands: number[], gains: number[] = []): void {
+        if (bands.length === 0) return;
+        this.entryNode.disconnect();
+        this.eqBandNodes.forEach(node => node.disconnect());
+        this.eqBandNodes = [];
+        this.eqBands = [...bands];
+        let previous: BiquadFilterNode | null = null;
+        for (const frequency of bands) {
+            const node = this.createEQNode(frequency, this.config.q);
+            if (previous) previous.connect(node);
+            previous = node;
+        }
+        this.applyFilterTypes();
+        this.entryNode.connect(this.eqBandNodes[0]);
+        this.eqBandNodes[this.eqBandNodes.length - 1].connect(this.exitNode);
+        this.setBandGains(gains);
+    }
+
+    setBandGains(value: number[], transitionMs = 0) {
+        for(const [index, node] of this.eqBandNodes.entries()) {
+            const gain = Number.isFinite(value[index]) ? value[index] : 0;
+            this.setParameterValue(node.gain, gain, transitionMs);
         }
     }
 

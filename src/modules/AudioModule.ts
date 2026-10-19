@@ -93,6 +93,23 @@ export abstract class AudioModule implements INode {
    */
   protected async setup() {}
 
+  /** Moves an AudioParam immediately or along a smooth ease-in-out curve. */
+  protected setParameterValue(parameter: AudioParam, value: number, transitionMs = 0) {
+    const now = this.audioContext.currentTime;
+    parameter.cancelScheduledValues(now);
+    if (transitionMs <= 0) {
+      parameter.setValueAtTime(value, now);
+      return;
+    }
+    const start = parameter.value;
+    const curve = Float32Array.from({ length: 96 }, (_, index) => {
+      const progress = index / 95;
+      const eased = progress * progress * progress * (progress * (progress * 6 - 15) + 10);
+      return start + (value - start) * eased;
+    });
+    parameter.setValueCurveAtTime(curve, now, transitionMs / 1000);
+  }
+
   /** Returns the entry node of the module where audio input is received. */
   get entry(): AudioNode { return this.entryNode; }
 }

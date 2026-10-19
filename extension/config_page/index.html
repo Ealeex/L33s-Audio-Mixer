@@ -85,6 +85,62 @@
                         <span class="switch-track"></span>
                     </span>
                 </label>
+                <form id="equalizer-bands-form" class="equalizer-settings">
+                    <div class="setting-icon">≋</div>
+                    <div class="equalizer-settings-copy">
+                        <div class="equalizer-settings-heading">
+                            <span class="setting-copy">
+                                <strong>Equalizer bands</strong>
+                                <small>Choose 2–16 ordered frequencies between 20 Hz and 20 kHz.</small>
+                            </span>
+                            <label class="band-count-label" for="equalizer-band-count">
+                                Bands
+                                <input id="equalizer-band-count" type="number" min="2" max="16" step="1">
+                            </label>
+                        </div>
+                        <div id="equalizer-band-list" class="equalizer-band-list"></div>
+                        <div class="equalizer-advanced-grid">
+                            <label>
+                                <span>Filter Q</span>
+                                <input id="equalizer-q" type="number" min="0.3" max="4" step="0.1">
+                                <small>Lower is broader; higher is narrower.</small>
+                            </label>
+                            <label>
+                                <span>Gain range</span>
+                                <select id="equalizer-gain-range">
+                                    <option value="12">±12 dB</option>
+                                    <option value="20">±20 dB</option>
+                                    <option value="24">±24 dB</option>
+                                    <option value="30">±30 dB</option>
+                                </select>
+                                <small>Maximum boost or cut per slider.</small>
+                            </label>
+                            <label>
+                                <span>Slider increment</span>
+                                <select id="equalizer-gain-step">
+                                    <option value="0.5">0.5 dB</option>
+                                    <option value="1">1 dB</option>
+                                    <option value="2">2 dB</option>
+                                </select>
+                                <small>Smaller values provide finer control.</small>
+                            </label>
+                            <label class="equalizer-switch-row" for="equalizer-shelf-endpoints">
+                                <span>
+                                    <strong>Shelf endpoints</strong>
+                                    <small>Use low/high shelves for the first and last bands.</small>
+                                </span>
+                                <span class="switch">
+                                    <input id="equalizer-shelf-endpoints" type="checkbox">
+                                    <span class="switch-track"></span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="equalizer-settings-actions">
+                            <button id="reset-equalizer-bands" class="button button-quiet" type="button">Use defaults</button>
+                            <button class="button button-secondary" type="submit">Save band layout</button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </section>
 

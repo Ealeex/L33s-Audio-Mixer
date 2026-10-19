@@ -2,6 +2,17 @@ import Runtime from "./util/Runtime";
 import { applyPreset, deletePreset, getCurrentPreset, getPresets, savePreset } from "./util/PresetStore";
 import { Logger } from "./util/Logger";
 import { Config, Preset } from "./Config";
+import {
+    createLogSpacedBands,
+    defaultEqualizerConfig,
+    equalizerBandsKey,
+    equalizerConfigKey,
+    getEqualizerBands,
+    getEqualizerConfig,
+    remapEqualizerGains,
+    validateEqualizerBands,
+    validateEqualizerConfig
+} from "./util/EqualizerSettings";
 
 type VisualizerSettings = { frequency: boolean; waveform: boolean };
 
@@ -153,6 +164,102 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     frequencyToggle.addEventListener("change", () => { void saveVisualizerSettings(); });
     waveformToggle.addEventListener("change", () => { void saveVisualizerSettings(); });
+
+    const equalizerForm = document.getElementById("equalizer-bands-form") as HTMLFormElement;
+    const equalizerBandCount = document.getElementById("equalizer-band-count") as HTMLInputElement;
+    const equalizerBandList = document.getElementById("equalizer-band-list")!;
+    let displayedBands = await getEqualizerBands();
+    const storedEqualizerConfig = await getEqualizerConfig();
+    const equalizerQ = document.getElementById("equalizer-q") as HTMLInputElement;
+    const equalizerGainRange = document.getElementById("equalizer-gain-range") as HTMLSelectElement;
+    const equalizerGainStep = document.getElementById("equalizer-gain-step") as HTMLSelectElement;
+    const equalizerShelfEndpoints = document.getElementById("equalizer-shelf-endpoints") as HTMLInputElement;
+    equalizerQ.value = storedEqualizerConfig.q.toString();
+    equalizerGainRange.value = storedEqualizerConfig.gainRange.toString();
+    equalizerGainStep.value = storedEqualizerConfig.gainStep.toString();
+    equalizerShelfEndpoints.checked = storedEqualizerConfig.shelfEndpoints;
+
+    const formatFrequency = (frequency: number) => frequency >= 1000
+        ? `${(frequency / 1000).toFixed(frequency % 1000 === 0 ? 0 : 1)}k`
+        : `${Math.round(frequency)}`;
+    const renderBandInputs = (bands: number[]) => {
+        displayedBands = [...bands];
+        equalizerBandCount.value = bands.length.toString();
+        equalizerBandList.replaceChildren();
+        bands.forEach((frequency, index) => {
+            const label = document.createElement("label");
+            label.className = "equalizer-band-field";
+            const caption = document.createElement("span");
+            caption.textContent = `Band ${index + 1}`;
+            const input = document.createElement("input");
+            input.type = "number";
+            input.min = "20";
+            input.max = "20000";
+            input.step = "1";
+            input.value = Math.round(frequency).toString();
+            input.setAttribute("aria-label", `Band ${index + 1} frequency in hertz`);
+            const unit = document.createElement("small");
+            unit.textContent = `${formatFrequency(frequency)} Hz`;
+            input.addEventListener("input", () => {
+                const value = Number(input.value);
+                unit.textContent = Number.isFinite(value) ? `${formatFrequency(value)} Hz` : "Hz";
+            });
+            label.append(caption, input, unit);
+            equalizerBandList.appendChild(label);
+        });
+    };
+
+    renderBandInputs(displayedBands);
+    equalizerBandCount.addEventListener("change", () => {
+        const requestedCount = Number(equalizerBandCount.value);
+        const count = Number.isFinite(requestedCount)
+            ? Math.max(Config.MIN_EQ_BANDS, Math.min(Config.MAX_EQ_BANDS, requestedCount))
+            : displayedBands.length;
+        renderBandInputs(createLogSpacedBands(count, displayedBands[0], displayedBands[displayedBands.length - 1]));
+    });
+    document.getElementById("reset-equalizer-bands")!.addEventListener("click", () => {
+        renderBandInputs([...Config.EQ_BANDS]);
+        equalizerQ.value = defaultEqualizerConfig.q.toString();
+        equalizerGainRange.value = defaultEqualizerConfig.gainRange.toString();
+        equalizerGainStep.value = defaultEqualizerConfig.gainStep.toString();
+        equalizerShelfEndpoints.checked = defaultEqualizerConfig.shelfEndpoints;
+    });
+    equalizerForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        try {
+            const nextBands = validateEqualizerBands(
+                [...equalizerBandList.querySelectorAll<HTMLInputElement>("input")].map(input => Number(input.value))
+            );
+            const nextConfig = validateEqualizerConfig({
+                q: Number(equalizerQ.value),
+                gainRange: Number(equalizerGainRange.value),
+                gainStep: Number(equalizerGainStep.value),
+                shelfEndpoints: equalizerShelfEndpoints.checked
+            });
+            const result = await Runtime.storage.local.get("equalizer");
+            const currentGains = Array.isArray(result.equalizer) ? result.equalizer : displayedBands.map(() => 0);
+            const nextGains = remapEqualizerGains(displayedBands, currentGains, nextBands)
+                .map(gain => Math.max(-nextConfig.gainRange, Math.min(nextConfig.gainRange, gain)));
+            await Runtime.storage.local.set({
+                [equalizerBandsKey]: nextBands,
+                [equalizerConfigKey]: nextConfig,
+                equalizer: nextGains
+            });
+            const tabs = await Runtime.tabs.query({});
+            for (const tab of tabs) {
+                if (tab.id == null) continue;
+                try {
+                    await Runtime.tabs.sendMessage(tab.id, { action: `set-${equalizerBandsKey}`, value: nextBands });
+                    await Runtime.tabs.sendMessage(tab.id, { action: `set-${equalizerConfigKey}`, value: nextConfig });
+                    await Runtime.tabs.sendMessage(tab.id, { action: "set-equalizer", value: nextGains, transitionMs: 320 });
+                } catch {}
+            }
+            renderBandInputs(nextBands);
+            setStatus(`Saved ${nextBands.length} bands at Q ${nextConfig.q}. Reopen the popup to refresh its controls.`);
+        } catch (error) {
+            setStatus(error instanceof Error ? error.message : "Could not save the equalizer bands.", true);
+        }
+    });
 
     const presetList = document.getElementById("preset-list")!;
     const presetCount = document.getElementById("preset-count")!;

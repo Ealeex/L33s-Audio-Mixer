@@ -8,6 +8,7 @@ import { Volume } from "../modules/Volume";
 import { Logger } from "../util/Logger";
 import { StorageManager } from "../util/StorageManager";
 import Runtime from "../util/Runtime";
+import { getEqualizerBands, getEqualizerConfig } from "../util/EqualizerSettings";
 
 export class AudioHandler {
     private static readonly visualizerPortName = 'audio-visualizer';
@@ -36,7 +37,9 @@ export class AudioHandler {
         AudioHandler.last_node = AudioHandler.entryNode;
 
         // Load Plugins
-        await AudioHandler.loadPlugin('equalizer', new Equalizer());
+        const equalizerBands = await getEqualizerBands();
+        const equalizerConfig = await getEqualizerConfig();
+        await AudioHandler.loadPlugin('equalizer', new Equalizer(equalizerBands, equalizerConfig));
         await AudioHandler.loadPlugin('convolver', new Convolver());
         await AudioHandler.loadPlugin('freqAnalyser', new FrequencyAnalyser());
         await AudioHandler.loadPlugin('waveAnalyser', new WaveformAnalyser());
@@ -97,17 +100,25 @@ export class AudioHandler {
 
     /** Sets up subscriptions for IPC / StorageManager */
     static async setupIPC() {
-        StorageManager.subscribe('convolver_mix', 0, (value: number) => {
-            (AudioHandler.modules.get('convolver') as Convolver).setMix(value);
+        StorageManager.subscribe('convolver_mix', 0, (value: number, message) => {
+            (AudioHandler.modules.get('convolver') as Convolver).setMix(value, message?.transitionMs);
         });
-        StorageManager.subscribe('stereo_seperation', 1, (value: number) => {
-            (AudioHandler.modules.get('stereoWidener') as StereoWidener).setSeparation(value);
+        StorageManager.subscribe('stereo_seperation', 1, (value: number, message) => {
+            (AudioHandler.modules.get('stereoWidener') as StereoWidener).setSeparation(value, message?.transitionMs);
         });
         StorageManager.subscribe('pre-amp', 1, (value: number) => {
             (AudioHandler.modules.get('volume') as Volume).setVolume(value);
         });
-        StorageManager.subscribe('equalizer', Array(9).fill(0), (value: number[]) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value);
+        const bands = await getEqualizerBands();
+        StorageManager.subscribe('equalizer-bands', bands, (value: number[]) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setBands(value);
+        });
+        const equalizerConfig = await getEqualizerConfig();
+        StorageManager.subscribe('equalizer-config', equalizerConfig, value => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setConfig(value);
+        });
+        StorageManager.subscribe('equalizer', Array(bands.length).fill(0), (value: number[], message) => {
+            (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value, message?.transitionMs);
         })
     }
 

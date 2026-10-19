@@ -200,6 +200,81 @@ h1 em { color: var(--accent); font-weight: 400; }
 .switch input:checked + .switch-track { border-color: var(--accent); background: var(--accent-soft); }
 .switch input:checked + .switch-track::after { transform: translateX(18px); background: var(--accent); }
 .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 3px; }
+.equalizer-settings {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 22px 0;
+    border-top: 1px solid var(--border);
+}
+.equalizer-settings-copy { min-width: 0; flex: 1; }
+.equalizer-settings-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.band-count-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.band-count-label input,
+.equalizer-band-field input {
+    border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent));
+    border-radius: 5px;
+    outline: none;
+    background: #121314;
+    color: var(--text);
+}
+.band-count-label input { width: 58px; height: 34px; padding: 0 8px; }
+.equalizer-band-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    gap: 9px;
+    margin-top: 18px;
+}
+.equalizer-band-field {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 5px 6px;
+    padding: 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--page) 45%, transparent);
+}
+.equalizer-band-field > span { grid-column: 1 / -1; color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.equalizer-band-field input { width: 100%; min-width: 0; height: 30px; padding: 0 7px; }
+.equalizer-band-field small { align-self: center; color: var(--accent); font-size: 8px; }
+.band-count-label input:focus,
+.equalizer-band-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
+.equalizer-settings-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 13px; }
+.equalizer-advanced-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+.equalizer-advanced-grid > label {
+    display: grid;
+    gap: 6px;
+    padding: 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--page) 45%, transparent);
+}
+.equalizer-advanced-grid > label > span:first-child { color: var(--text); font-size: 9px; font-weight: 600; }
+.equalizer-advanced-grid input[type="number"],
+.equalizer-advanced-grid select {
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent));
+    border-radius: 5px;
+    outline: none;
+    background: #121314;
+    color: var(--text);
+}
+.equalizer-advanced-grid small { color: var(--muted); font-size: 8px; line-height: 1.4; }
+.equalizer-advanced-grid .equalizer-switch-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+}
+.equalizer-switch-row > span:first-child { display: grid; gap: 4px; }
 .preset-layout { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(0, 1.5fr); gap: 16px; }
 .save-card { padding: 22px; }
 .save-card h3 { margin: 0 0 9px; font-size: 22px; }
@@ -299,6 +374,10 @@ h1 em { color: var(--accent); font-weight: 400; }
     .section-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
     .preset-layout { grid-template-columns: 1fr; }
     .preset-row { align-items: flex-start; flex-direction: column; gap: 9px; }
+    .equalizer-settings-heading { flex-direction: column; gap: 12px; }
+    .equalizer-settings { align-items: flex-start; }
+    .equalizer-advanced-grid { grid-template-columns: 1fr; }
+    .equalizer-advanced-grid .equalizer-switch-row { grid-column: auto; }
     .page-footer { flex-wrap: wrap; }
     #status-message { order: 3; flex-basis: 100%; text-align: left; }
 }

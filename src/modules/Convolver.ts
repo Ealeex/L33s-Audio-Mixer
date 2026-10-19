@@ -47,11 +47,12 @@ export class Convolver extends AudioModule {
         return await this.audioContext.decodeAudioData(arrayBuffer);
     }
 
-    setMix(mix: number) {
+    setMix(mix: number, transitionMs = 0) {
         if (!this.loaded) return;
         const clamped = Math.min(1, Math.max(0, mix));
-        this.dryGainNode.gain.value = 1 - clamped;
-        this.wetGainNode.gain.value = clamped;
+        for (const [parameter, value] of [[this.dryGainNode.gain, 1 - clamped], [this.wetGainNode.gain, clamped]] as const) {
+            this.setParameterValue(parameter, value, transitionMs);
+        }
     }
 
 }

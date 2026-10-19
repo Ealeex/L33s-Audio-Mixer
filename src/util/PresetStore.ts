@@ -1,6 +1,7 @@
 import { Config, Preset } from "../Config";
 import Runtime from "./Runtime";
 import { Logger } from "./Logger";
+import { getEqualizerBands, getEqualizerConfig, remapEqualizerGains, validateEqualizerBands } from "./EqualizerSettings";
 
 const userPresetsKey = "user-presets";
 const selectedPresetKey = "selected-preset";
@@ -14,25 +15,45 @@ function isPreset(value: unknown): value is Preset {
         && Number.isFinite(candidate.convolver)
         && typeof candidate.stereoWidener === "number"
         && Number.isFinite(candidate.stereoWidener)
-        && (candidate.volume === undefined
-            || (typeof candidate.volume === "number" && Number.isFinite(candidate.volume)))
         && Array.isArray(candidate.equalizer)
-        && candidate.equalizer.length === Config.EQ_BANDS.length
+        && candidate.equalizer.length >= Config.MIN_EQ_BANDS
+        && candidate.equalizer.length <= Config.MAX_EQ_BANDS
+        && (candidate.bands === undefined
+            || (Array.isArray(candidate.bands) && candidate.bands.length === candidate.equalizer.length))
         && candidate.equalizer.every(gain => typeof gain === "number" && Number.isFinite(gain));
 }
 
+function adaptPreset(preset: Preset, targetBands: number[]): Preset {
+    let sourceBands = Config.EQ_BANDS;
+    if (preset.bands) {
+        try { sourceBands = validateEqualizerBands(preset.bands); } catch {}
+    } else if (preset.equalizer.length !== Config.EQ_BANDS.length) {
+        sourceBands = targetBands.length === preset.equalizer.length ? targetBands : Config.EQ_BANDS;
+    }
+    return {
+        convolver: preset.convolver,
+        stereoWidener: preset.stereoWidener,
+        equalizer: remapEqualizerGains(sourceBands, preset.equalizer, targetBands),
+        bands: [...targetBands]
+    };
+}
+
 export async function getPresets(): Promise<PresetCollection> {
+    const bands = await getEqualizerBands();
     const result = await Runtime.storage.local.get(userPresetsKey);
     const saved = result[userPresetsKey];
     const custom: PresetCollection = {};
     if (saved && typeof saved === "object" && !Array.isArray(saved)) {
         for (const [name, preset] of Object.entries(saved)) {
             if (name.trim() && !Object.hasOwn(Config.Presets, name) && isPreset(preset)) {
-                custom[name] = { ...preset, volume: preset.volume ?? 1 };
+                custom[name] = adaptPreset(preset, bands);
             }
         }
     }
-    return { ...Config.Presets, ...custom };
+    return {
+        ...Object.fromEntries(Object.entries(Config.Presets).map(([name, preset]) => [name, adaptPreset(preset, bands)])),
+        ...custom
+    };
 }
 
 export async function savePreset(name: string, preset: Preset): Promise<string> {
@@ -75,11 +96,11 @@ export async function deletePreset(name: string): Promise<void> {
 }
 
 export async function applyPreset(name: string, preset: Preset): Promise<void> {
+    const config = await getEqualizerConfig();
     const values = {
         convolver_mix: preset.convolver,
         stereo_seperation: preset.stereoWidener,
-        equalizer: preset.equalizer,
-        "pre-amp": preset.volume ?? 1
+        equalizer: preset.equalizer.map(gain => Math.max(-config.gainRange, Math.min(config.gainRange, gain)))
     };
     await Runtime.storage.local.set({
         ...values,
@@ -90,7 +111,11 @@ export async function applyPreset(name: string, preset: Preset): Promise<void> {
         if (tab.id == null) continue;
         for (const [key, value] of Object.entries(values)) {
             try {
-                await Runtime.tabs.sendMessage(tab.id, { action: `set-${key}`, value });
+                await Runtime.tabs.sendMessage(tab.id, {
+                    action: `set-${key}`,
+                    value,
+                    transitionMs: Config.PRESET_TRANSITION_MS
+                });
             } catch (error) {
                 Logger.logErr(`Unable to update ${key} in tab ${tab.id}:`, error);
             }
@@ -99,6 +124,7 @@ export async function applyPreset(name: string, preset: Preset): Promise<void> {
 }
 
 export async function getCurrentPreset(): Promise<Preset> {
+    const bands = await getEqualizerBands();
     const result = await Runtime.storage.local.get([
         "convolver_mix",
         "stereo_seperation",
@@ -108,9 +134,9 @@ export async function getCurrentPreset(): Promise<Preset> {
     return {
         convolver: typeof result.convolver_mix === "number" ? result.convolver_mix : 0,
         stereoWidener: typeof result.stereo_seperation === "number" ? result.stereo_seperation : 1,
-        volume: typeof result["pre-amp"] === "number" ? result["pre-amp"] : 1,
-        equalizer: Array.isArray(equalizer) && equalizer.length === Config.EQ_BANDS.length
+        bands,
+        equalizer: Array.isArray(equalizer) && equalizer.length === bands.length
             ? equalizer
-            : Array(Config.EQ_BANDS.length).fill(0)
+            : Array(bands.length).fill(0)
     };
 }

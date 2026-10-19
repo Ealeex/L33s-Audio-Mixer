@@ -7,6 +7,7 @@ import { Logger } from "./util/Logger";
 import { Preset } from "./Config";
 import Runtime from "./util/Runtime";
 import { getCurrentPreset, savePreset } from "./util/PresetStore";
+import { getEqualizerBands, getEqualizerConfig } from "./util/EqualizerSettings";
 
 type VisualizerSettings = { frequency: boolean; waveform: boolean };
 
@@ -77,14 +78,20 @@ document.addEventListener('DOMContentLoaded', async() => {
     const volumeOpt = await new UserRangeOption({name:'Pre-amp', min:0, max:2, step:0.01, default:1}).init();
     const convolverOpt = await new UserRangeOption({name:'Convolver Mix', step:0.1}).init();
     const stereoWidthOpt = await new UserRangeOption({name:'Stereo Separation', storageName:'stereo_seperation', min:0, default:1, max:5, step:1}).init();
-    const equalizer = await new WebEqualizer({min:-20, max:20, step:2}).init();
+    const equalizerBands = await getEqualizerBands();
+    const equalizerConfig = await getEqualizerConfig();
+    const equalizer = await new WebEqualizer({
+        bands: equalizerBands,
+        min: -equalizerConfig.gainRange,
+        max: equalizerConfig.gainRange,
+        step: equalizerConfig.gainStep
+    }).init();
 
     const presetManager = await new PresetManager().init();
     presetManager.valueChanged = (preset: Preset) => {
-        volumeOpt.setValue(preset.volume ?? 1);
-        convolverOpt.setValue(preset.convolver);
-        stereoWidthOpt.setValue(preset.stereoWidener);
-        equalizer.setValue(preset.equalizer);
+        convolverOpt.animateToValue(preset.convolver);
+        stereoWidthOpt.animateToValue(preset.stereoWidener);
+        equalizer.animateToValue(preset.equalizer);
     };
 
     document.getElementById('options-button')!.addEventListener('click', async () => {

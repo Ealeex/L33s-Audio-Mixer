@@ -19,7 +19,7 @@ export class StorageManager {
      * @param callback - Function invoked with the current value of the key whenever it changes.
      * @throws Error if the key is already subscribed.
      */
-    static async subscribe<T>(key: string, defaultValue: T, callback: (value: T) => void) {
+    static async subscribe<T>(key: string, defaultValue: T, callback: (value: T, message?: any) => void) {
         if (StorageManager.subscribedKeys.has(key)) throw new Error('Cannot subscribe key more than once.');
 
         let value = await StorageManager.get(key) as T;
@@ -31,7 +31,7 @@ export class StorageManager {
 
         const listener = (message: any) => {
             if (message.action != `set-${key}`) return;
-            callback(message.value);
+            callback(message.value, message);
             StorageManager.set(key, message.value);
         }
         Runtime.runtime.onMessage.addListener(listener);

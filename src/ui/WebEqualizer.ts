@@ -1,10 +1,10 @@
-import { Config } from "../Config";
 import { Logger } from "../util/Logger";
 import Runtime from "../util/Runtime";
+import { Config } from "../Config";
 
 export class WebEqualizer {
 
-    private bands = Config.EQ_BANDS;
+    private bands: number[];
     private sliders: HTMLInputElement[] = [];
     private min: number;
     private max: number;
@@ -12,7 +12,8 @@ export class WebEqualizer {
     private default: number;
     private storageName = "equalizer";
 
-    constructor(opts?: { min?: number; max?: number; step?: number; default?: number }) {
+    constructor(opts?: { bands?: number[]; min?: number; max?: number; step?: number; default?: number }) {
+        this.bands = opts?.bands ?? [];
         this.min = opts?.min ?? -20;
         this.max = opts?.max ?? 20;
         this.step = opts?.step ?? 1;
@@ -77,6 +78,21 @@ export class WebEqualizer {
         values = values.map((v, i) => Math.max(Math.min(v, this.max), this.min));
         values.forEach((v, i) => this.sliders[i].value = v.toString());
         this.sendData(manual);
+    }
+
+    animateToValue(values: number[], durationMs = Config.PRESET_TRANSITION_MS): void {
+        const starts = this.getValue();
+        const targets = this.sliders.map((_, index) => Math.max(Math.min(values[index] ?? 0, this.max), this.min));
+        const startedAt = performance.now();
+        const animate = (now: number) => {
+            const progress = Math.min(1, (now - startedAt) / durationMs);
+            const eased = progress * progress * progress * (progress * (progress * 6 - 15) + 10);
+            this.sliders.forEach((slider, index) => {
+                slider.value = (starts[index] + (targets[index] - starts[index]) * eased).toString();
+            });
+            if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
     }
 
     getValue(): number[] {

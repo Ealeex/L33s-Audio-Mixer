@@ -63,8 +63,8 @@ export class StereoWidener extends AudioModule {
         this.invertSide.gain.value = -1;
     }
 
-    setSeparation(sep: number) {
-        this.sideScaler.gain.value = sep;
+    setSeparation(sep: number, transitionMs = 0) {
+        this.setParameterValue(this.sideScaler.gain, sep, transitionMs);
     }
 
 }
