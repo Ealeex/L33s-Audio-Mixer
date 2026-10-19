@@ -26,31 +26,31 @@ export class Config {
             q: [0.4, 0.4, 0.4],
             shelfEndpoints: true
         },
-        'Default': {
+        'Bass Boost': {
             convolver: 0,
             stereoWidener: 1,
             offset: 0,
-            equalizer: [0,0,0,0,0,0,0,0,0],
-            bands: Config.EQ_BANDS,
-            q: Array(9).fill(1),
+            equalizer: [8.333333333333336, -7.598850574712645, -6.3218390804597675, 4.885057471264368],
+            bands: [485, 742, 1890, 2655],
+            q: [0.4, 0.7848018923390606, 0.7708421613559244, 0.4],
             shelfEndpoints: true
         },
-        'Bass-Boosted': {
+        'Super Bass': {
             convolver: 0,
             stereoWidener: 1,
             offset: 0,
-            equalizer: [10,10,10,5,0,0,5,10,10],
-            bands: Config.EQ_BANDS,
-            q: Array(9).fill(0.8),
+            equalizer: [8.245137392241379, -4.1285156249999995, 3.4210174209770092],
+            bands: [194, 632, 1972],
+            q: [0.4, 0.4, 0.4],
             shelfEndpoints: true
         },
         'Car Interior': {
-            convolver: 0.8,
+            convolver: 0.848148148148148,
             stereoWidener: 1,
             offset: 0,
-            equalizer: [15,15,15,5,0,0,5,10,10],
-            bands: Config.EQ_BANDS,
-            q: Array(9).fill(0.9),
+            equalizer: [18, -4, -2.5, -3.5, 6],
+            bands: [280, 720, 1600, 4200, 9500],
+            q: [0.4, 0.8, 0.7, 0.9, 0.4],
             shelfEndpoints: true
         }
     }

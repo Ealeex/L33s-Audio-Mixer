@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "L33's Audio Equalizer",
+  "name": "Emberline",
   "version": "1.7",
-  "description": "Simple audio equalizer with built in reverb slider.\nThe reverb slider is meant to simulate a car's interior.",
+  "description": "A parametric equalizer and spatial audio toolkit for shaping browser audio.",
   "permissions": [
     "storage",
     "clipboardRead",
@@ -40,7 +40,15 @@
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "48": "icons/icon-48.png"
+      "48": "icons/icon-48.png",
+      "64": "icons/icon-64.png",
+      "128": "icons/icon-128.png"
     }
+  },
+  "icons": {
+    "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
+    "128": "icons/icon-128.png",
+    "512": "icons/icon-512.png"
   }
 }

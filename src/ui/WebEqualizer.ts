@@ -49,8 +49,8 @@ export class WebEqualizer {
 
     constructor(opts?: { bands?: number[]; min?: number; max?: number; step?: number; default?: number; q?: number; qs?: number[]; shelfEndpoints?: boolean; mount?: HTMLElement }) {
         this.bands = [...(opts?.bands ?? [])];
-        this.min = opts?.min ?? -20;
-        this.max = opts?.max ?? 20;
+        this.min = opts?.min ?? -25;
+        this.max = opts?.max ?? 25;
         this.step = opts?.step ?? 1;
         this.default = opts?.default ?? 0;
         this.qs = this.bands.map((_, index) => opts?.qs?.[index] ?? opts?.q ?? 1);
@@ -339,27 +339,41 @@ export class WebEqualizer {
 
     private drawSpectrum(ctx: CanvasRenderingContext2D, width: number, height: number, spectrum: number[], resulting: boolean): void {
         if (spectrum.length < 2) return;
-        ctx.beginPath();
-        spectrum.forEach((decibels, index) => {
+        const points = spectrum.map((decibels, index) => {
             const position = index / (spectrum.length - 1);
             const frequency = this.spectrumMinimumFrequency
                 * Math.pow(this.spectrumMaximumFrequency / this.spectrumMinimumFrequency, position);
-            const x = this.frequencyToX(frequency, width);
             const normalized = Math.max(0, Math.min(1, (decibels + 100) / 100));
-            const y = height - normalized * height * .82;
-            if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            return {
+                x: this.frequencyToX(frequency, width),
+                y: height - normalized * height * .82
+            };
+        });
+        ctx.beginPath();
+        points.forEach((point, index) => {
+            if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
         });
         ctx.lineTo(width, height);
         ctx.lineTo(0, height);
         ctx.closePath();
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, resulting ? "rgba(223, 116, 116, .15)" : "rgba(184, 205, 210, .18)");
-        gradient.addColorStop(1, resulting ? "rgba(223, 116, 116, .015)" : "rgba(184, 205, 210, .02)");
+        gradient.addColorStop(0, resulting ? "rgba(235, 105, 112, .28)" : "rgba(176, 194, 199, .12)");
+        gradient.addColorStop(1, resulting ? "rgba(223, 116, 116, .025)" : "rgba(176, 194, 199, .015)");
         ctx.fillStyle = gradient;
         ctx.fill();
-        ctx.strokeStyle = resulting ? "rgba(223, 116, 116, .5)" : "rgba(205, 220, 223, .34)";
-        ctx.lineWidth = resulting ? 1.25 : 1;
+
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        points.forEach(point => ctx.lineTo(point.x, point.y));
+        ctx.lineTo(width, height);
+        ctx.setLineDash(resulting ? [] : [3, 3]);
+        ctx.strokeStyle = resulting ? "rgba(244, 119, 126, .88)" : "rgba(196, 211, 215, .42)";
+        ctx.lineWidth = resulting ? 1.65 : 1;
+        ctx.shadowColor = resulting ? "rgba(235, 105, 112, .42)" : "transparent";
+        ctx.shadowBlur = resulting ? 5 : 0;
         ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.shadowBlur = 0;
     }
 
     private drawResponse(ctx: CanvasRenderingContext2D, width: number, height: number): void {
@@ -552,6 +566,54 @@ export class WebEqualizer {
     setOffset(offset: number): void {
         this.offset = Math.max(this.min, Math.min(this.max, offset));
         this.draw();
+    }
+
+    bakeOffset(offset: number): void {
+        const appliedOffset = Math.max(this.min, Math.min(this.max, offset));
+        if (Math.abs(appliedOffset) < Number.EPSILON) return;
+        const sampleCount = 120;
+        const frequencies = Array.from({ length: sampleCount }, (_, index) => {
+            const x = index / (sampleCount - 1);
+            return graphMinimumFrequency * Math.pow(graphMaximumFrequency / graphMinimumFrequency, x);
+        });
+        const responseFor = (gains: number[], frequency: number) => this.bands.reduce((total, band, index) => {
+            const type = this.shelfEndpoints && index === 0
+                ? "lowshelf"
+                : this.shelfEndpoints && index === this.bands.length - 1
+                    ? "highshelf"
+                    : "peaking";
+            return total + this.getFilterResponse(type, band, gains[index], frequency);
+        }, 0);
+        const target = frequencies.map(frequency => responseFor(this.values, frequency) + appliedOffset);
+        const errorFor = (gains: number[]) => frequencies.reduce((sum, frequency, index) => {
+            const difference = responseFor(gains, frequency) - target[index];
+            return sum + difference * difference;
+        }, 0) / sampleCount;
+
+        let fitted = this.values.map(value => Math.max(this.min, Math.min(this.max, value + appliedOffset)));
+        let bestError = errorFor(fitted);
+        let searchStep = Math.max(0.5, Math.min(6, Math.abs(appliedOffset)));
+        for (let pass = 0; pass < 48 && searchStep >= 0.01; pass++) {
+            let improved = false;
+            for (let index = 0; index < fitted.length; index++) {
+                for (const direction of [-1, 1]) {
+                    const candidate = [...fitted];
+                    candidate[index] = Math.max(this.min, Math.min(this.max, candidate[index] + direction * searchStep));
+                    const candidateError = errorFor(candidate);
+                    if (candidateError < bestError) {
+                        fitted = candidate;
+                        bestError = candidateError;
+                        improved = true;
+                    }
+                }
+            }
+            if (!improved) searchStep /= 2;
+        }
+        this.values = fitted;
+        this.offset = 0;
+        this.responseDirty = true;
+        this.updateLayout();
+        void this.sendData(true);
     }
 
     bindSideControl(control: HTMLElement): void {

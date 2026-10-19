@@ -187,6 +187,37 @@ export async function applyPreset(name: string, preset: Preset): Promise<void> {
     }
 }
 
+function presetValuesMatch(left: Preset, right: Preset): boolean {
+    const arraysMatch = (a: number[], b: number[]) => a.length === b.length
+        && a.every((value, index) => Math.abs(value - b[index]) < 0.000001);
+    return Math.abs(left.convolver - right.convolver) < 0.000001
+        && Math.abs(left.stereoWidener - right.stereoWidener) < 0.000001
+        && Math.abs(left.offset - right.offset) < 0.000001
+        && left.shelfEndpoints === right.shelfEndpoints
+        && arraysMatch(left.equalizer, right.equalizer)
+        && arraysMatch(left.bands, right.bands)
+        && arraysMatch(left.q, right.q);
+}
+
+export async function ensureSelectedPresetApplied(): Promise<void> {
+    const presets = await getPresets();
+    const result = await Runtime.storage.local.get(selectedPresetKey);
+    const storedName = result[selectedPresetKey];
+    if (storedName === "Custom") return;
+
+    const selectedName = typeof storedName === "string" && presets[storedName]
+        ? storedName
+        : "3 Bands";
+    const selectedPreset = presets[selectedName] ?? normalizePreset(Config.Presets["3 Bands"]);
+    const currentPreset = await getCurrentPreset();
+
+    if (!presetValuesMatch(currentPreset, selectedPreset)) {
+        await applyPreset(selectedName, selectedPreset);
+    } else if (storedName !== selectedName) {
+        await Runtime.storage.local.set({ [selectedPresetKey]: selectedName });
+    }
+}
+
 export async function getCurrentPreset(): Promise<Preset> {
     const bands = await getEqualizerBands();
     const config = await getEqualizerConfig();

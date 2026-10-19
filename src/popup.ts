@@ -6,7 +6,7 @@ import { PresetManager } from "./ui/PresetManager";
 import { Logger } from "./util/Logger";
 import { Config, Preset } from "./Config";
 import Runtime from "./util/Runtime";
-import { applyPreset, getCurrentPreset, getPresets, parsePreset, renamePreset, savePreset, serializePreset } from "./util/PresetStore";
+import { applyPreset, ensureSelectedPresetApplied, getCurrentPreset, getPresets, parsePreset, renamePreset, savePreset, serializePreset } from "./util/PresetStore";
 import { getEqualizerBands, getEqualizerConfig, getEqualizerQs } from "./util/EqualizerSettings";
 
 type VisualizerSettings = { frequency: boolean; waveform: boolean };
@@ -86,6 +86,8 @@ function isVisualizerData(message: object): message is {
 
 document.addEventListener('DOMContentLoaded', async() => {
     Logger.log("Initializing Popup");
+
+    await ensureSelectedPresetApplied();
 
     const frequencyDisplay = new FrequencyDisplay();
     const waveformDisplay = new WaveformDisplay();
@@ -188,8 +190,14 @@ document.addEventListener('DOMContentLoaded', async() => {
     const equalizerQs = await getEqualizerQs(equalizerBands.length, equalizerConfig.q);
     const equalizerActions = document.createElement("div");
     equalizerActions.className = "module-header-actions";
+    const bakeOffsetButton = document.createElement("button");
+    bakeOffsetButton.type = "button";
+    bakeOffsetButton.className = "module-tool-button";
+    bakeOffsetButton.textContent = "0";
+    bakeOffsetButton.title = "Bake master offset into the EQ curve";
+    bakeOffsetButton.setAttribute("aria-label", "Bake master offset into the equalizer curve and reset it to zero");
     const equalizerPower = createPowerButton("Toggle equalizer");
-    equalizerActions.append(equalizerPower);
+    equalizerActions.append(bakeOffsetButton, equalizerPower);
     const equalizerWidget = createModuleWidget({
         eyebrow: "TONE",
         title: "Parametric equalizer",
@@ -220,10 +228,14 @@ document.addEventListener('DOMContentLoaded', async() => {
         default:0,
         snapToZero:0.6,
         mount:offsetMount,
-        onValueChanged: value => equalizer?.setOffset(value)
+        onValueChanged: value => {
+            equalizer?.setOffset(value);
+            bakeOffsetButton.disabled = Math.abs(value) < 0.05;
+        }
     }).init();
     equalizer.bindSideControl(offsetMount);
     equalizer.setOffset(offsetOpt.getValue());
+    bakeOffsetButton.disabled = Math.abs(offsetOpt.getValue()) < 0.05;
     equalizer.setEnabled(equalizerEnabled);
     equalizer.setSpectrumEnabled(initialVisualizerSettings.frequency);
     equalizerPower.addEventListener("click", () => {
@@ -231,6 +243,13 @@ document.addEventListener('DOMContentLoaded', async() => {
         setPowerState(equalizerPower, equalizerEnabled);
         equalizer?.setEnabled(equalizerEnabled);
         void sendSetting("equalizer-enabled", equalizerEnabled);
+    });
+    bakeOffsetButton.addEventListener("click", () => {
+        const offset = offsetOpt.getValue();
+        if (Math.abs(offset) < 0.05) return;
+        equalizer?.bakeOffset(offset);
+        offsetOpt.applyPresetValue(0, 0);
+        bakeOffsetButton.disabled = true;
     });
 
     const presetManager = await new PresetManager().init();
@@ -241,6 +260,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         stereoToggle.checked = preset.stereoWidener === 0;
         offsetOpt.animateToValue(preset.offset);
         equalizer?.animateOffsetTo(preset.offset);
+        bakeOffsetButton.disabled = Math.abs(preset.offset) < 0.05;
         equalizer?.animateToPresetLayout(preset.bands, preset.equalizer, preset.q, preset.shelfEndpoints);
     };
     presetManager.valueChanged = reflectPreset;
