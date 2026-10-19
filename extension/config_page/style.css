@@ -1,12 +1,14 @@
 :root {
     color-scheme: dark;
     --page: #101112;
-    --surface: #171819;
-    --border: #303033;
-    --muted: #929094;
-    --text: #f0edeb;
-    --accent: #e5777c;
+    --surface: #18191c;
+    --border: #303136;
+    --muted: #99979a;
+    --text: #f0eeee;
+    --accent: #df7474;
+    --accent-strong: #c95d5d;
     --accent-soft: #63383b;
+    --shadow: 0 18px 50px rgb(0 0 0 / 32%);
 }
 
 * { box-sizing: border-box; }
@@ -48,16 +50,45 @@ button, input { font: inherit; }
 .brand strong, .brand small { display: block; }
 .brand strong { font: 600 15px Georgia, serif; }
 .brand small { margin-top: 2px; color: var(--muted); font-size: 8px; letter-spacing: .14em; }
-.topnav { display: flex; gap: 4px; padding: 4px; border: 1px solid #2e2d30; border-radius: 999px; background: #141516; }
+.topnav {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #2e2d30;
+    border-radius: 999px;
+    background: #141516;
+    box-shadow: inset 0 1px rgb(255 255 255 / 2.5%);
+}
+.topnav::before {
+    position: absolute;
+    z-index: 0;
+    top: 4px;
+    bottom: 4px;
+    left: var(--indicator-left, 4px);
+    width: var(--indicator-width, 0);
+    border-radius: 999px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 82%, #fff), var(--accent-strong));
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 24%, transparent);
+    content: "";
+    opacity: var(--indicator-opacity, 0);
+    pointer-events: none;
+    transition: var(--indicator-transition, none);
+}
 .topnav a {
+    position: relative;
+    z-index: 1;
     padding: 8px 15px;
     border-radius: 999px;
     color: #a9a6a6;
     font-size: 11px;
     text-decoration: none;
-    transition: color .15s, background .15s;
+    transition: color .18s ease, background .18s ease, transform .18s ease;
 }
-.topnav a:hover, .topnav a.active { background: var(--accent); color: #211719; }
+.topnav a:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text); }
+.topnav a.active { background: transparent; color: #211719; }
+.topnav a:active { transform: scale(.97); }
 .status-pill, .section-caption { color: var(--muted); font-size: 10px; }
 .status-pill {
     display: inline-flex;
@@ -97,7 +128,13 @@ h1 em { color: var(--accent); font-weight: 400; }
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 9px;
-    background: linear-gradient(110deg, #171819, #231e20);
+    background:
+        radial-gradient(ellipse at 76% 8%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 58%),
+        linear-gradient(105deg, var(--surface), color-mix(in srgb, var(--surface) 96%, var(--accent)));
+    background-position: 88% 4%, 50% 50%;
+    background-size: 125% 125%, 100% 100%;
+    box-shadow: inset 0 1px rgb(255 255 255 / 2%);
+    transition: background-position .55s cubic-bezier(.22, .8, .28, 1), border-color .25s ease;
 }
 .summary-card { min-height: 115px; padding: 20px 22px; border-right: 1px solid var(--border); }
 .summary-card:last-child { border-right: 0; }
@@ -111,7 +148,13 @@ h1 em { color: var(--accent); font-weight: 400; }
 .settings-panel, .save-card, .preset-list {
     border: 1px solid var(--border);
     border-radius: 8px;
-    background: linear-gradient(135deg, #1b1b1d, #191819 70%, #211b1d);
+    background:
+        radial-gradient(circle at 86% 12%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 34%),
+        linear-gradient(105deg, var(--surface), color-mix(in srgb, var(--surface) 96%, var(--accent)));
+    background-position: 88% 4%, 50% 50%;
+    background-size: 125% 125%, 100% 100%;
+    box-shadow: inset 0 1px rgb(255 255 255 / 2%);
+    transition: background-position .55s cubic-bezier(.22, .8, .28, 1), border-color .25s ease;
 }
 .settings-panel { padding: 0 20px; }
 .setting-row { display: flex; min-height: 82px; align-items: center; gap: 15px; border-bottom: 1px solid #302e30; cursor: pointer; }
@@ -121,10 +164,12 @@ h1 em { color: var(--accent); font-weight: 400; }
     width: 34px;
     height: 34px;
     place-items: center;
-    border: 1px solid #403235;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
     border-radius: 7px;
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
     color: var(--accent);
     font: 19px Georgia, serif;
+    box-shadow: inset 0 0 18px color-mix(in srgb, var(--accent) 7%, transparent);
 }
 .setting-copy { flex: 1; }
 .setting-copy strong, .setting-copy small { display: block; }
@@ -197,6 +242,20 @@ h1 em { color: var(--accent); font-weight: 400; }
 .button-quiet:hover { color: var(--accent); }
 .preset-list { overflow: hidden; }
 .preset-row { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 17px; border-bottom: 1px solid #302e30; }
+.preset-row { position: relative; transition: background .16s ease; }
+.preset-row::before {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 4px;
+    height: 28px;
+    border-radius: 99px;
+    background: linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 35%, transparent));
+    content: "";
+    opacity: .75;
+    transform: translateY(-50%);
+}
+.preset-row:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .preset-row:last-child { border-bottom: 0; }
 .preset-info h3 { margin: 0 0 5px; font-size: 15px; }
 .preset-info p { margin: 0; color: var(--muted); font-size: 10px; }
@@ -206,6 +265,26 @@ h1 em { color: var(--accent); font-weight: 400; }
 .page-footer a { color: #c2bdbd; text-decoration: none; }
 #status-message { flex: 1; text-align: center; letter-spacing: 0; }
 #status-message.is-error { color: #f08b90; }
+@media (hover: hover) {
+    .summary-grid:hover,
+    .settings-panel:hover,
+    .save-card:hover,
+    .preset-list:hover {
+        background-position: 62% 24%, 50% 50%;
+        border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .topnav::before { transition: none !important; }
+    .summary-grid,
+    .settings-panel,
+    .save-card,
+    .preset-list {
+        transition: none;
+    }
+}
 @media (max-width: 700px) {
     .topbar { flex-wrap: wrap; padding: 12px 20px; }
     .topnav { order: 3; width: 100%; justify-content: center; }

@@ -5,6 +5,66 @@ import { Config, Preset } from "./Config";
 
 type VisualizerSettings = { frequency: boolean; waveform: boolean };
 
+let navigationAnimationId = 0;
+
+function positionNavigationIndicator(
+    previousLink: HTMLAnchorElement | null,
+    nextLink: HTMLAnchorElement,
+    animate: boolean
+): void {
+    const nav = nextLink.closest<HTMLElement>(".topnav");
+    if (!nav) return;
+
+    const targetLeft = nextLink.offsetLeft;
+    const targetWidth = nextLink.offsetWidth;
+    const animationId = ++navigationAnimationId;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!animate || reducedMotion || !previousLink || previousLink === nextLink) {
+        nav.style.setProperty("--indicator-transition", "none");
+        nav.style.setProperty("--indicator-left", `${targetLeft}px`);
+        nav.style.setProperty("--indicator-width", `${targetWidth}px`);
+        nav.style.setProperty("--indicator-opacity", "1");
+        return;
+    }
+
+    const stretchLeft = Math.min(previousLink.offsetLeft, targetLeft);
+    const stretchRight = Math.max(
+        previousLink.offsetLeft + previousLink.offsetWidth,
+        targetLeft + targetWidth
+    );
+    nav.style.setProperty(
+        "--indicator-transition",
+        "left 170ms cubic-bezier(.22,.8,.28,1), width 170ms cubic-bezier(.22,.8,.28,1)"
+    );
+    requestAnimationFrame(() => {
+        if (animationId !== navigationAnimationId) return;
+        nav.style.setProperty("--indicator-left", `${stretchLeft}px`);
+        nav.style.setProperty("--indicator-width", `${stretchRight - stretchLeft}px`);
+        nav.style.setProperty("--indicator-opacity", "1");
+        window.setTimeout(() => {
+            if (animationId !== navigationAnimationId) return;
+            nav.style.setProperty(
+                "--indicator-transition",
+                "left 230ms cubic-bezier(.2,.9,.25,1), width 230ms cubic-bezier(.2,.9,.25,1)"
+            );
+            nav.style.setProperty("--indicator-left", `${targetLeft}px`);
+            nav.style.setProperty("--indicator-width", `${targetWidth}px`);
+        }, 170);
+    });
+}
+
+function setActiveNavigation(nextLink: HTMLAnchorElement, animate: boolean): void {
+    const previousLink = document.querySelector<HTMLAnchorElement>(".topnav a.active");
+    document.querySelectorAll<HTMLAnchorElement>(".topnav a").forEach(link => {
+        const active = link === nextLink;
+        link.classList.toggle("active", active);
+        if (active) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+    });
+    positionNavigationIndicator(previousLink, nextLink, animate);
+}
+
 function presetSummary(preset: Preset): string {
     const average = preset.equalizer.reduce((sum, gain) => sum + gain, 0) / preset.equalizer.length;
     return `Reverb ${Math.round(preset.convolver * 100)}% · Width ${preset.stereoWidener.toFixed(1)} · EQ ${average >= 0 ? "+" : ""}${average.toFixed(1)} dB`;
@@ -20,12 +80,47 @@ function makeButton(label: string, className: string, action: () => void): HTMLB
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    document.querySelectorAll<HTMLAnchorElement>(".topnav a").forEach(link => {
+    const navigationLinks = [...document.querySelectorAll<HTMLAnchorElement>(".topnav a")];
+    let navigationClickLockUntil = 0;
+    let navigationFrame: number | undefined;
+
+    navigationLinks.forEach(link => {
         link.addEventListener("click", () => {
-            document.querySelector(".topnav a.active")?.classList.remove("active");
-            link.classList.add("active");
+            navigationClickLockUntil = performance.now() + 600;
+            setActiveNavigation(link, true);
         });
     });
+
+    const initialLink = navigationLinks.find(link => link.hash === location.hash)
+        ?? navigationLinks.find(link => link.classList.contains("active"))
+        ?? navigationLinks[0];
+    if (initialLink) setActiveNavigation(initialLink, false);
+
+    const trackedSections = [...document.querySelectorAll<HTMLElement>("#overview, #settings, #presets")];
+    const syncNavigationToScroll = () => {
+        navigationFrame = undefined;
+        if (performance.now() < navigationClickLockUntil || trackedSections.length === 0) return;
+        const headerOffset = 92;
+        const current = trackedSections.reduce(
+            (active, section) => section.getBoundingClientRect().top <= headerOffset ? section : active,
+            trackedSections[0]
+        );
+        const nextLink = navigationLinks.find(link => link.hash === `#${current.id}`);
+        if (nextLink && !nextLink.classList.contains("active")) setActiveNavigation(nextLink, true);
+    };
+
+    window.addEventListener("scroll", () => {
+        if (navigationFrame === undefined) navigationFrame = requestAnimationFrame(syncNavigationToScroll);
+    }, { passive: true });
+    window.addEventListener("resize", () => {
+        const activeLink = document.querySelector<HTMLAnchorElement>(".topnav a.active");
+        if (activeLink) positionNavigationIndicator(activeLink, activeLink, false);
+    });
+    window.addEventListener("hashchange", () => {
+        const nextLink = navigationLinks.find(link => link.hash === location.hash);
+        if (nextLink && !nextLink.classList.contains("active")) setActiveNavigation(nextLink, true);
+    });
+    syncNavigationToScroll();
 
     const status = document.getElementById("status-message")!;
     const setStatus = (message: string, isError = false) => {
