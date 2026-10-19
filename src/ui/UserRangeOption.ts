@@ -17,6 +17,10 @@ export class UserRangeOption {
     private mount: HTMLElement;
     private onValueChanged: (value: number) => void;
     private snapToZero: number;
+    private queuedSend: number | null = null;
+    private sendPending = false;
+    private sending = false;
+    private pendingManualChange = false;
 
     constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number | "any", default?:number, triggerPresetOnManual?:boolean, mount?:HTMLElement, onValueChanged?:(value:number)=>void, snapToZero?:number}) {
         this.name = opts.name;
@@ -45,24 +49,43 @@ export class UserRangeOption {
         this.inputElem.value = (typeof result[this.storageName] === 'number' ? result[this.storageName] : this.default).toString();
 
         // Add Listener (user input should be treated as manual unless opted out)
-        this.inputElem.addEventListener('input', () => { this.sendData(this.triggerPresetOnManual); });
+        this.inputElem.addEventListener('input', () => this.queueData(this.triggerPresetOnManual));
 
     }
 
+    private queueData(manual: boolean): void {
+        this.pendingManualChange ||= manual;
+        if (this.queuedSend !== null) return;
+        this.queuedSend = requestAnimationFrame(() => {
+            this.queuedSend = null;
+            void this.sendData(false);
+        });
+    }
+
     private async sendData(manual=false, transitionMs=0) {
-        let value = parseFloat(this.inputElem.value);
-        if (Number.isNaN(value)) return;
-        if (this.snapToZero > 0 && Math.abs(value) <= this.snapToZero) {
-            value = 0;
-            this.inputElem.value = "0";
+        this.sendPending = true;
+        this.pendingManualChange ||= manual;
+        if (this.sending) return;
+        this.sending = true;
+        while (this.sendPending) {
+            this.sendPending = false;
+            let value = parseFloat(this.inputElem.value);
+            if (Number.isNaN(value)) continue;
+            if (this.snapToZero > 0 && Math.abs(value) <= this.snapToZero) {
+                value = 0;
+                this.inputElem.value = "0";
+            }
+            const markManual = this.pendingManualChange;
+            this.pendingManualChange = false;
+            this.onValueChanged(value);
+            await Runtime.storage.local.set({ [this.storageName]: value });
+            const tabs = await Runtime.tabs.query({});
+            for (const tab of tabs) if (tab.id != null) try {
+                await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value, transitionMs });
+            } catch {}
+            if (markManual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
         }
-        this.onValueChanged(value);
-        await Runtime.storage.local.set({ [this.storageName]: value });
-        const tabs = await Runtime.tabs.query({});
-        for (const tab of tabs) if (tab.id != null) try {
-            await Runtime.tabs.sendMessage(tab.id, { action: `set-${this.storageName}`, value, transitionMs });
-        } catch {}
-        if (manual) document.dispatchEvent(new CustomEvent('preset:manual-change'));
+        this.sending = false;
     }
 
     private createElement() {

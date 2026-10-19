@@ -1,13 +1,36 @@
 import { AudioHandler } from "./ui/AudioHandler";
 import { Logger } from "./util/Logger";
+import Runtime from "./util/Runtime";
+import { isSiteEnabled } from "./util/SiteSettings";
 
-(async () => {
+const siteEnabled = isSiteEnabled(location.hostname);
+const initialize = async (): Promise<boolean> => {
   try {
-    // Haha Spotify DRM go brrrrrrrrr.
-    if (location.hostname.includes("spotify.com")) { Logger.log("Spotify detected — audio processing disabled (DRM-protected)"); return; }
+    if (!await siteEnabled) return false;
     await AudioHandler.init();
-    window.addEventListener("play", e => { if(e.target instanceof HTMLMediaElement) AudioHandler.attachOnce(e.target); }, true);
-  } catch (err) { 
-    Logger.logErr("Audio handler initialization failed:", err); 
+    return true;
+  } catch (error) {
+    Logger.logErr("Audio handler initialization failed:", error);
+    return false;
   }
-})();
+};
+
+Runtime.runtime.onConnect.addListener(port => {
+  if (port.name !== AudioHandler.visualizerPortName) return;
+  void initialize().then(initialized => {
+    if (initialized) AudioHandler.connectVisualizer(port);
+    else port.disconnect();
+  });
+});
+
+window.addEventListener("play", event => {
+  if (!(event.target instanceof HTMLMediaElement)) return;
+  const media = event.target;
+  void initialize().then(initialized => {
+    if (initialized) void AudioHandler.attachOnce(media);
+  });
+}, true);
+
+void siteEnabled.then(enabled => {
+  if (!enabled) Logger.log(`Audio processing disabled on ${location.hostname}.`);
+}).catch(error => Logger.logErr("Unable to read site power setting:", error));

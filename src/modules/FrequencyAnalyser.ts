@@ -5,12 +5,15 @@ export class FrequencyAnalyser extends AudioModule {
     readonly name = 'Frequency_Analyser';
 
     // Config
-    private fftSize = 16384;
-    private visualBinCount = 256;
+    private readonly fftSize = 8192;
+    private readonly visualBinCount = 256;
     static readonly visualMinimumFrequency = 30;
     static readonly visualMaximumFrequency = 12000;
 
     private data!: Float32Array<ArrayBuffer>;
+    private visualData!: Float32Array<ArrayBuffer>;
+    private visualBinStarts!: Uint16Array<ArrayBuffer>;
+    private visualBinEnds!: Uint16Array<ArrayBuffer>;
 
     // Nodes
     analyserNode!: AnalyserNode;  
@@ -31,62 +34,43 @@ export class FrequencyAnalyser extends AudioModule {
         this.analyserNode.smoothingTimeConstant = 0.25;
 
         this.data = new Float32Array(this.analyserNode.frequencyBinCount);
+        this.visualData = new Float32Array(this.visualBinCount);
+        this.visualBinStarts = new Uint16Array(this.visualBinCount);
+        this.visualBinEnds = new Uint16Array(this.visualBinCount);
+        const nyquist = this.audioContext.sampleRate / 2;
+        const hzPerBin = nyquist / this.data.length;
+        const logMin = Math.log10(FrequencyAnalyser.visualMinimumFrequency);
+        const logRange = Math.log10(FrequencyAnalyser.visualMaximumFrequency) - logMin;
+        for (let index = 0; index < this.visualBinCount; index++) {
+            const firstFrequency = 10 ** (logMin + index / this.visualBinCount * logRange);
+            const lastFrequency = 10 ** (logMin + (index + 1) / this.visualBinCount * logRange);
+            this.visualBinStarts[index] = Math.max(0, Math.floor(firstFrequency / hzPerBin));
+            this.visualBinEnds[index] = Math.min(this.data.length - 1, Math.ceil(lastFrequency / hzPerBin));
+        }
     }
 
     getVisualData(): number[] {
         this.analyserNode.getFloatFrequencyData(this.data);
-        return Array.from(this.getLogFrequencyData(this.visualBinCount));
+        return Array.from(this.getLogFrequencyData());
     }
 
-    private getLogFrequencyData(logBinCount: number): Float32Array {
-        const output = new Float32Array(logBinCount);
-
-        const sampleRate = this.audioContext.sampleRate;
-        const nyquist = sampleRate / 2;
-
-        // ---- VISUAL TUNING ----
-        const minFreq = FrequencyAnalyser.visualMinimumFrequency;
-        const maxFreq = FrequencyAnalyser.visualMaximumFrequency;
-        const minDb = -100;
-
-        const logMin = Math.log10(minFreq);
-        const logMax = Math.log10(maxFreq);
-
-        const binCount = this.data.length;
-        const hzPerBin = nyquist / binCount;
-
-        for (let i = 0; i < logBinCount; i++) {
-            const t0 = i / logBinCount;
-            const t1 = (i + 1) / logBinCount;
-
-            const f0 = 10 ** (logMin + t0 * (logMax - logMin));
-            const f1 = 10 ** (logMin + t1 * (logMax - logMin));
-
-            let binStart = Math.floor(f0 / hzPerBin);
-            let binEnd   = Math.ceil (f1 / hzPerBin);
-
-            binStart = Math.max(0, binStart);
-            binEnd   = Math.min(binCount - 1, binEnd);
-
-            let max = minDb;
+    private getLogFrequencyData(): Float32Array<ArrayBuffer> {
+        for (let i = 0; i < this.visualBinCount; i++) {
+            let max = -100;
             let sum = 0;
             let count = 0;
-
-            for (let b = binStart; b <= binEnd; b++) {
+            for (let b = this.visualBinStarts[i]; b <= this.visualBinEnds[i]; b++) {
                 const v = this.data[b];
                 if (v > max) max = v;
                 sum += v;
                 count++;
             }
 
-            const avg = count > 0 ? sum / count : minDb;
-
-            // Preserve short transients without applying cosmetic frequency weighting.
+            const avg = count > 0 ? sum / count : -100;
             const value = max * 0.7 + avg * 0.3;
-            output[i] = isFinite(value) ? value : minDb;
+            this.visualData[i] = Number.isFinite(value) ? value : -100;
         }
-
-        return output;
+        return this.visualData;
     }
 
 }

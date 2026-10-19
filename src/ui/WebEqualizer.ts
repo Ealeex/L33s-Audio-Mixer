@@ -200,6 +200,10 @@ export class WebEqualizer {
         };
         const finish = () => {
             node.removeEventListener("pointermove", update);
+            if (this.queuedSend !== null) {
+                cancelAnimationFrame(this.queuedSend);
+                this.queuedSend = null;
+            }
             void this.sendData(true);
         };
         node.addEventListener("pointermove", update);
@@ -339,20 +343,18 @@ export class WebEqualizer {
 
     private drawSpectrum(ctx: CanvasRenderingContext2D, width: number, height: number, spectrum: number[], resulting: boolean): void {
         if (spectrum.length < 2) return;
-        const points = spectrum.map((decibels, index) => {
-            const position = index / (spectrum.length - 1);
-            const frequency = this.spectrumMinimumFrequency
-                * Math.pow(this.spectrumMaximumFrequency / this.spectrumMinimumFrequency, position);
-            const normalized = Math.max(0, Math.min(1, (decibels + 100) / 100));
-            return {
-                x: this.frequencyToX(frequency, width),
-                y: height - normalized * height * .82
-            };
-        });
+        const firstX = this.frequencyToX(this.spectrumMinimumFrequency, width);
+        const lastX = this.frequencyToX(this.spectrumMaximumFrequency, width);
+        const xStep = (lastX - firstX) / (spectrum.length - 1);
+        const yAt = (index: number) => {
+            const normalized = Math.max(0, Math.min(1, (spectrum[index] + 100) / 100));
+            return height - normalized * height * .82;
+        };
         ctx.beginPath();
-        points.forEach((point, index) => {
-            if (index === 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y);
-        });
+        ctx.moveTo(firstX, yAt(0));
+        for (let index = 1; index < spectrum.length; index++) {
+            ctx.lineTo(firstX + index * xStep, yAt(index));
+        }
         ctx.lineTo(width, height);
         ctx.lineTo(0, height);
         ctx.closePath();
@@ -364,7 +366,9 @@ export class WebEqualizer {
 
         ctx.beginPath();
         ctx.moveTo(0, height);
-        points.forEach(point => ctx.lineTo(point.x, point.y));
+        for (let index = 0; index < spectrum.length; index++) {
+            ctx.lineTo(firstX + index * xStep, yAt(index));
+        }
         ctx.lineTo(width, height);
         ctx.setLineDash(resulting ? [] : [3, 3]);
         ctx.strokeStyle = resulting ? "rgba(244, 119, 126, .88)" : "rgba(196, 211, 215, .42)";

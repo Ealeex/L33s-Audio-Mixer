@@ -6,6 +6,7 @@ export class WaveformAnalyser extends AudioModule {
     
     // Config
     private fftSize = 2048;
+    private readonly visualSampleCount = 256;
 
     private data!: Float32Array<ArrayBuffer>;
 
@@ -30,7 +31,12 @@ export class WaveformAnalyser extends AudioModule {
 
     getVisualData(): number[] {
         this.analyserNode.getFloatTimeDomainData(this.data);
-        return Array.from(this.data);
+        const result = new Array<number>(this.visualSampleCount);
+        const stride = this.data.length / this.visualSampleCount;
+        for (let index = 0; index < this.visualSampleCount; index++) {
+            result[index] = this.data[Math.floor(index * stride)];
+        }
+        return result;
     }
 
 }

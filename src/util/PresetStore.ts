@@ -20,20 +20,28 @@ function isPreset(value: unknown): value is Preset {
         && (candidate.offset === undefined || (typeof candidate.offset === "number" && Number.isFinite(candidate.offset)))
         && (rawQ === undefined
             || (typeof rawQ === "number" && rawQ >= .3 && rawQ <= 4)
-            || (Array.isArray(rawQ) && rawQ.every(q => typeof q === "number" && q >= .3 && q <= 4)))
+            || (Array.isArray(rawQ)
+                && rawQ.length === candidate.equalizer?.length
+                && rawQ.every(q => typeof q === "number" && q >= .3 && q <= 4)))
         && (candidate.shelfEndpoints === undefined || typeof candidate.shelfEndpoints === "boolean")
         && Array.isArray(candidate.equalizer)
         && candidate.equalizer.length >= Config.MIN_EQ_BANDS
         && candidate.equalizer.length <= Config.MAX_EQ_BANDS
         && (candidate.bands === undefined
-            || (Array.isArray(candidate.bands) && candidate.bands.length === candidate.equalizer.length))
+            || (Array.isArray(candidate.bands)
+                && candidate.bands.length === candidate.equalizer.length
+                && candidate.bands.every(frequency => typeof frequency === "number"
+                    && Number.isFinite(frequency)
+                    && frequency >= 20
+                    && frequency <= 20000)))
         && candidate.equalizer.every(gain => typeof gain === "number" && Number.isFinite(gain));
 }
 
 function normalizePreset(preset: Preset): Preset {
     let sourceBands: number[] = Config.EQ_BANDS;
     if (preset.bands) {
-        try { sourceBands = validateEqualizerBands(preset.bands); } catch {}
+        try { sourceBands = validateEqualizerBands(preset.bands); }
+        catch { sourceBands = createLogSpacedBands(preset.equalizer.length); }
     } else if (preset.equalizer.length !== Config.EQ_BANDS.length) {
         sourceBands = createLogSpacedBands(preset.equalizer.length);
     }

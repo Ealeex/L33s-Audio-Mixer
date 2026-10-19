@@ -1,6 +1,6 @@
 {
   "name": "emberline",
-  "version": "1.0.1",
+  "version": "1.8.0",
   "description": "A parametric equalizer and spatial audio toolkit for shaping browser audio.",
   "main": "inject.js",
   "scripts": {

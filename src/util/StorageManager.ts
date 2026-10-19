@@ -25,7 +25,7 @@ export class StorageManager {
         let value = await StorageManager.get(key) as T;
         if (value === undefined) {
             value = defaultValue;
-            StorageManager.set(key, value);
+            await StorageManager.set(key, value);
         }
         callback(value);
 

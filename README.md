@@ -24,7 +24,7 @@ Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio
    npm run build
    npm run start (Requires Firefox configured with a profile named "Testing" to be setup.)
    ```
-3. Load the `src/` directory as an unpacked extension in your browser:
+3. Load the `extension/` directory as an unpacked extension in your browser:
    - **Firefox**: Use [web-ext](https://github.com/mozilla/web-ext) or load as a temporary add-on.
    - **Chrome**: Go to `chrome://extensions`, enable Developer Mode, and load the `src/` folder.
 

@@ -10,11 +10,12 @@ import Runtime from "../util/Runtime";
 import { getEqualizerBands, getEqualizerConfig, getEqualizerQs } from "../util/EqualizerSettings";
 
 export class AudioHandler {
-    private static readonly visualizerPortName = 'audio-visualizer';
-    private static visualizerSettings = { frequency: true, waveform: true };
+    static readonly visualizerPortName = 'audio-visualizer';
+    private static readonly visualizerFrameIntervalMs = 1000 / 60;
+    private static visualizerSettings = { enabled: true, frequency: true, waveform: true };
 
     // Storage
-    static audioContext = new AudioContext();
+    static audioContext: AudioContext;
     static last_node: AudioNode | AudioModule;
     static attached = new WeakSet<HTMLMediaElement>();
 
@@ -22,15 +23,22 @@ export class AudioHandler {
     static entryNode: GainNode;
     static modules: Map<string, AudioModule> = new Map();
     private static isInitialized = false;
+    private static initialization: Promise<void> | null = null;
 
     /** Initializes the audio system and loads all plugins */
-    static async init() {
+    static async init(): Promise<void> {
+        if (AudioHandler.isInitialized) return;
+        if (AudioHandler.initialization) return AudioHandler.initialization;
+        AudioHandler.initialization = AudioHandler.initialize();
+        try { await AudioHandler.initialization; }
+        finally { AudioHandler.initialization = null; }
+    }
 
-        if(AudioHandler.isInitialized) return;
-
+    private static async initialize(): Promise<void> {
         Logger.log('Initializing AudioHandler');
 
         // Initial Setup
+        AudioHandler.audioContext = new AudioContext();
         AudioHandler.entryNode = AudioHandler.audioContext.createGain();
         AudioHandler.entryNode.connect(AudioHandler.audioContext.destination);
         AudioHandler.last_node = AudioHandler.entryNode;
@@ -48,7 +56,7 @@ export class AudioHandler {
 
         // Setup Communication
         await AudioHandler.setupIPC();
-        await AudioHandler.setupVisualizerStream();
+        await AudioHandler.setupVisualizerSettings();
         AudioHandler.isInitialized = true;
     }
 
@@ -63,8 +71,6 @@ export class AudioHandler {
     static async attachOnce(media: HTMLMediaElement) {
 
         if(AudioHandler.attached.has(media)) return;
-        AudioHandler.attached.add(media);
-
         Logger.log('Attaching to media source.');
 
         await AudioHandler.ensureRunning();
@@ -83,6 +89,7 @@ export class AudioHandler {
         try {
             const node = AudioHandler.audioContext.createMediaElementSource(media);
             node.connect(AudioHandler.entryNode);
+            AudioHandler.attached.add(media);
             Logger.log('Successfully created MediaElementSource.');
         } catch {
             Logger.log('createMediaElementSource failed, attempting captureStream fallback.');
@@ -92,6 +99,7 @@ export class AudioHandler {
                 const stream = capture.call(media);
                 const node = AudioHandler.audioContext.createMediaStreamSource(stream);
                 node.connect(AudioHandler.entryNode);
+                AudioHandler.attached.add(media);
                 Logger.log('Successfully ran captureStream fallback.');
                 return true;
             } catch { return false; }
@@ -100,40 +108,43 @@ export class AudioHandler {
 
     /** Sets up subscriptions for IPC / StorageManager */
     static async setupIPC() {
-        StorageManager.subscribe('convolver_mix', 0, (value: number, message) => {
-            (AudioHandler.modules.get('convolver') as Convolver).setMix(value, message?.transitionMs);
-        });
-        StorageManager.subscribe('stereo_seperation', 1, (value: number, message) => {
-            (AudioHandler.modules.get('stereoWidener') as StereoWidener).setSeparation(value, message?.transitionMs);
-        });
         const bands = await getEqualizerBands();
         const equalizerConfig = await getEqualizerConfig();
-        StorageManager.subscribe('equalizer-bands', bands, (value: number[]) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setBands(value);
-        });
         const equalizerQs = await getEqualizerQs(bands.length, equalizerConfig.q);
-        StorageManager.subscribe('equalizer-qs', equalizerQs, (value: number[]) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setBandQs(value);
-        });
-        StorageManager.subscribe('equalizer-config', equalizerConfig, value => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setConfig(value);
-        });
-        StorageManager.subscribe('equalizer', Array(bands.length).fill(0), (value: number[], message) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value, message?.transitionMs);
-        });
-        StorageManager.subscribe('equalizer-enabled', true, (value: boolean, message) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setEnabled(value, message?.transitionMs);
-        });
-        StorageManager.subscribe('equalizer-offset', 0, (value: number, message) => {
-            (AudioHandler.modules.get('equalizer') as Equalizer).setOffset(value, message?.transitionMs);
-        });
+        await Promise.all([
+            StorageManager.subscribe('convolver_mix', 0, (value: number, message) => {
+                (AudioHandler.modules.get('convolver') as Convolver).setMix(value, message?.transitionMs);
+            }),
+            StorageManager.subscribe('stereo_seperation', 1, (value: number, message) => {
+                (AudioHandler.modules.get('stereoWidener') as StereoWidener).setSeparation(value, message?.transitionMs);
+            }),
+            StorageManager.subscribe('equalizer-bands', bands, (value: number[]) => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setBands(value);
+            }),
+            StorageManager.subscribe('equalizer-qs', equalizerQs, (value: number[]) => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setBandQs(value);
+            }),
+            StorageManager.subscribe('equalizer-config', equalizerConfig, value => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setConfig(value);
+            }),
+            StorageManager.subscribe('equalizer', Array(bands.length).fill(0), (value: number[], message) => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setBandGains(value, message?.transitionMs);
+            }),
+            StorageManager.subscribe('equalizer-enabled', true, (value: boolean, message) => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setEnabled(value, message?.transitionMs);
+            }),
+            StorageManager.subscribe('equalizer-offset', 0, (value: number, message) => {
+                (AudioHandler.modules.get('equalizer') as Equalizer).setOffset(value, message?.transitionMs);
+            })
+        ]);
     }
 
-    private static async setupVisualizerStream() {
+    private static async setupVisualizerSettings() {
         const result = await Runtime.storage.local.get('visualizer-settings');
         const settings = result['visualizer-settings'];
         if (settings && typeof settings === 'object') {
             AudioHandler.visualizerSettings = {
+                enabled: settings.enabled !== false,
                 frequency: settings.frequency !== false,
                 waveform: settings.waveform !== false
             };
@@ -143,39 +154,39 @@ export class AudioHandler {
             const settings = changes['visualizer-settings'].newValue;
             if (!settings || typeof settings !== 'object') return;
             AudioHandler.visualizerSettings = {
+                enabled: settings.enabled !== false,
                 frequency: settings.frequency !== false,
                 waveform: settings.waveform !== false
             };
         });
 
-        Runtime.runtime.onConnect.addListener(port => {
-            if (port.name !== AudioHandler.visualizerPortName) return;
+    }
 
-            const frequencyAnalyser = AudioHandler.modules.get('freqAnalyser') as FrequencyAnalyser | undefined;
-            const sourceFrequencyAnalyser = AudioHandler.modules.get('sourceFreqAnalyser') as FrequencyAnalyser | undefined;
-            const waveformAnalyser = AudioHandler.modules.get('waveAnalyser') as WaveformAnalyser | undefined;
-            if (!frequencyAnalyser || !sourceFrequencyAnalyser || !waveformAnalyser) {
-                const error = new Error('Visualizer analyzers are unavailable.');
-                Logger.logErr(error);
-                port.disconnect();
-                return;
-            }
+    static connectVisualizer(port: ReturnType<typeof Runtime.runtime.connect>): void {
+        const frequencyAnalyser = AudioHandler.modules.get('freqAnalyser') as FrequencyAnalyser | undefined;
+        const sourceFrequencyAnalyser = AudioHandler.modules.get('sourceFreqAnalyser') as FrequencyAnalyser | undefined;
+        const waveformAnalyser = AudioHandler.modules.get('waveAnalyser') as WaveformAnalyser | undefined;
+        if (!frequencyAnalyser || !sourceFrequencyAnalyser || !waveformAnalyser) {
+            Logger.logErr('Visualizer analyzers are unavailable.');
+            port.disconnect();
+            return;
+        }
 
-            const intervalId = window.setInterval(() => {
-                if (document.visibilityState !== 'visible'
-                    || (!AudioHandler.visualizerSettings.frequency && !AudioHandler.visualizerSettings.waveform)) return;
-                port.postMessage({
-                    frequency: AudioHandler.visualizerSettings.frequency ? frequencyAnalyser.getVisualData() : null,
-                    sourceFrequency: AudioHandler.visualizerSettings.frequency ? sourceFrequencyAnalyser.getVisualData() : null,
-                    waveform: AudioHandler.visualizerSettings.waveform ? waveformAnalyser.getVisualData() : null,
-                    frequencyMinimum: FrequencyAnalyser.visualMinimumFrequency,
-                    frequencyMaximum: FrequencyAnalyser.visualMaximumFrequency,
-                    sampleRate: AudioHandler.audioContext.sampleRate
-                });
-            }, 1000 / 144);
+        const intervalId = window.setInterval(() => {
+            if (document.visibilityState !== 'visible'
+                || !AudioHandler.visualizerSettings.enabled
+                || (!AudioHandler.visualizerSettings.frequency && !AudioHandler.visualizerSettings.waveform)) return;
+            port.postMessage({
+                frequency: AudioHandler.visualizerSettings.frequency ? frequencyAnalyser.getVisualData() : null,
+                sourceFrequency: AudioHandler.visualizerSettings.frequency ? sourceFrequencyAnalyser.getVisualData() : null,
+                waveform: AudioHandler.visualizerSettings.waveform ? waveformAnalyser.getVisualData() : null,
+                frequencyMinimum: FrequencyAnalyser.visualMinimumFrequency,
+                frequencyMaximum: FrequencyAnalyser.visualMaximumFrequency,
+                sampleRate: AudioHandler.audioContext.sampleRate
+            });
+        }, AudioHandler.visualizerFrameIntervalMs);
 
-            port.onDisconnect.addListener(() => window.clearInterval(intervalId));
-        });
+        port.onDisconnect.addListener(() => window.clearInterval(intervalId));
     }
 
     /** Loads a plugin into the audio chain */

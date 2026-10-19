@@ -2,6 +2,7 @@ export class WaveformDisplay {
 
     canvas!: HTMLCanvasElement;
     ctx!: CanvasRenderingContext2D;
+    private readonly accent = '#e5777c';
 
     constructor() {
         this.canvas = this.createCanvas();
@@ -19,14 +20,17 @@ export class WaveformDisplay {
 
     draw(waveform: number[]) {
         if (waveform.length === 0) return;
-        this.ctx.fillStyle = 'black';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clear();
         this.ctx.beginPath();
 
-        const finiteData = waveform.filter(Number.isFinite);
-        if (finiteData.length === 0) return;
-        const dataMin = Math.min(...finiteData);
-        const dataMax = Math.max(...finiteData);
+        let dataMin = Infinity;
+        let dataMax = -Infinity;
+        for (const value of waveform) {
+            if (!Number.isFinite(value)) continue;
+            dataMin = Math.min(dataMin, value);
+            dataMax = Math.max(dataMax, value);
+        }
+        if (!Number.isFinite(dataMin) || !Number.isFinite(dataMax)) return;
         const dataRange = Math.max(dataMax - dataMin, 0.02);
         const padding = dataRange * 0.1;
         const minValue = dataMin - padding;
@@ -48,9 +52,14 @@ export class WaveformDisplay {
             else this.ctx.lineTo(x, y);
         }
 
-        this.ctx.strokeStyle = getComputedStyle(this.canvas).getPropertyValue('--accent').trim() || '#e5777c';
+        this.ctx.strokeStyle = this.accent;
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
+    }
+
+    clear(): void {
+        this.ctx.fillStyle = 'black';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
 }

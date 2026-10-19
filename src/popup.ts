@@ -1,6 +1,5 @@
 import { UserRangeOption } from "./ui/UserRangeOption";
 import { WebEqualizer } from "./ui/WebEqualizer";
-import { FrequencyDisplay } from "./ui/FrequencyDisplay";
 import { WaveformDisplay } from "./ui/WaveformDisplay";
 import { PresetManager } from "./ui/PresetManager";
 import { Logger } from "./util/Logger";
@@ -8,8 +7,9 @@ import { Config, Preset } from "./Config";
 import Runtime from "./util/Runtime";
 import { applyPreset, ensureSelectedPresetApplied, getCurrentPreset, getPresets, parsePreset, renamePreset, savePreset, serializePreset } from "./util/PresetStore";
 import { getEqualizerBands, getEqualizerConfig, getEqualizerQs } from "./util/EqualizerSettings";
+import { isSiteEnabled, setSiteEnabled } from "./util/SiteSettings";
 
-type VisualizerSettings = { frequency: boolean; waveform: boolean };
+type VisualizerSettings = { enabled: boolean; frequency: boolean; waveform: boolean };
 
 function createModuleWidget(options: {
     title: string;
@@ -89,17 +89,57 @@ document.addEventListener('DOMContentLoaded', async() => {
 
     await ensureSelectedPresetApplied();
 
-    const frequencyDisplay = new FrequencyDisplay();
+    const [activeTab] = await Runtime.tabs.query({ active: true, currentWindow: true });
+    const activeTabId = activeTab?.id;
+    const activeHostname = (() => {
+        try {
+            const url = new URL(activeTab?.url ?? "");
+            return url.protocol === "http:" || url.protocol === "https:" ? url.hostname : "";
+        } catch { return ""; }
+    })();
+    const masterPower = document.getElementById('master-power') as HTMLButtonElement;
+    let siteEnabled = activeHostname ? await isSiteEnabled(activeHostname) : false;
+    const updateMasterPower = () => {
+        document.body.classList.toggle('is-site-disabled', !siteEnabled);
+        masterPower.disabled = !activeHostname || activeTabId == null;
+        masterPower.classList.toggle('is-on', siteEnabled);
+        masterPower.setAttribute('aria-pressed', String(siteEnabled));
+        const label = !activeHostname
+            ? 'Emberline is unavailable on this page'
+            : `${siteEnabled ? 'Disable' : 'Enable'} Emberline on ${activeHostname}`;
+        masterPower.title = label;
+        masterPower.setAttribute('aria-label', label);
+    };
+    updateMasterPower();
+    masterPower.addEventListener('click', async () => {
+        if (!activeHostname || activeTabId == null) return;
+        masterPower.disabled = true;
+        siteEnabled = !siteEnabled;
+        updateMasterPower();
+        masterPower.disabled = true;
+        await setSiteEnabled(activeHostname, siteEnabled);
+        await Runtime.tabs.reload(activeTabId);
+        window.close();
+    });
+
     const waveformDisplay = new WaveformDisplay();
+    const visualizerToggle = document.getElementById('visualizer-toggle') as HTMLButtonElement;
     let equalizer: WebEqualizer | null = null;
     let visualizerPort: ReturnType<typeof Runtime.tabs.connect> | null = null;
-    let activeTabId: number | undefined;
+    let visualizerSettings: VisualizerSettings;
 
     const setVisualizerSettings = (settings: VisualizerSettings) => {
-        frequencyDisplay.canvas.hidden = true;
+        visualizerSettings = settings;
+        const isActive = siteEnabled && settings.enabled && (settings.frequency || settings.waveform);
+        visualizerToggle.disabled = !siteEnabled;
+        visualizerToggle.classList.toggle('is-on', siteEnabled && settings.enabled);
+        visualizerToggle.setAttribute('aria-pressed', String(settings.enabled));
+        visualizerToggle.title = settings.enabled ? 'Hibernate visualizers' : 'Wake visualizers';
+        visualizerToggle.setAttribute('aria-label', visualizerToggle.title);
         waveformDisplay.canvas.hidden = !settings.waveform;
-        equalizer?.setSpectrumEnabled(settings.frequency);
-        if (settings.frequency || settings.waveform) {
+        if (!isActive) waveformDisplay.clear();
+        equalizer?.setSpectrumEnabled(siteEnabled && settings.enabled && settings.frequency);
+        if (isActive) {
             if (visualizerPort || activeTabId == null) return;
             try {
                 const port = Runtime.tabs.connect(activeTabId, { name: 'audio-visualizer' });
@@ -107,7 +147,6 @@ document.addEventListener('DOMContentLoaded', async() => {
                 port.onMessage.addListener((message: object) => {
                     if (!isVisualizerData(message)) return;
                     if (message.frequency) {
-                        frequencyDisplay.draw(message.frequency);
                         equalizer?.setSpectrumData(message.sourceFrequency ?? message.frequency, message.frequency, {
                             minimumFrequency: message.frequencyMinimum,
                             maximumFrequency: message.frequencyMaximum,
@@ -128,25 +167,28 @@ document.addEventListener('DOMContentLoaded', async() => {
         }
     };
 
-    try {
-        const [activeTab] = await Runtime.tabs.query({ active: true, currentWindow: true });
-        activeTabId = activeTab?.id;
-    } catch (error) {
-        Logger.logErr('Unable to find the active tab for visualizers:', error);
-    }
     const storedVisualizers = await Runtime.storage.local.get('visualizer-settings');
     const configuredVisualizers = storedVisualizers['visualizer-settings'];
     const initialVisualizerSettings: VisualizerSettings = {
+        enabled: configuredVisualizers?.enabled !== false,
         frequency: configuredVisualizers?.frequency !== false,
         waveform: configuredVisualizers?.waveform !== false
     };
     setVisualizerSettings(initialVisualizerSettings);
+    window.addEventListener('pagehide', () => visualizerPort?.disconnect(), { once: true });
+
+    visualizerToggle.addEventListener('click', () => {
+        const next = { ...visualizerSettings, enabled: !visualizerSettings.enabled };
+        setVisualizerSettings(next);
+        void Runtime.storage.local.set({ 'visualizer-settings': next });
+    });
 
     Runtime.storage.onChanged.addListener((changes, areaName) => {
         if (areaName !== 'local' || !changes['visualizer-settings']) return;
         const settings = changes['visualizer-settings'].newValue;
         if (!settings || typeof settings !== 'object') return;
         setVisualizerSettings({
+            enabled: settings.enabled !== false,
             frequency: settings.frequency !== false,
             waveform: settings.waveform !== false
         });
@@ -237,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     equalizer.setOffset(offsetOpt.getValue());
     bakeOffsetButton.disabled = Math.abs(offsetOpt.getValue()) < 0.05;
     equalizer.setEnabled(equalizerEnabled);
-    equalizer.setSpectrumEnabled(initialVisualizerSettings.frequency);
+    equalizer.setSpectrumEnabled(siteEnabled && initialVisualizerSettings.enabled && initialVisualizerSettings.frequency);
     equalizerPower.addEventListener("click", () => {
         equalizerEnabled = !equalizerEnabled;
         setPowerState(equalizerPower, equalizerEnabled);
