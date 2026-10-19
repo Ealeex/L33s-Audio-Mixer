@@ -1,39 +1,50 @@
 # Emberline
 
-A browser extension that injects an audio processing script into web pages, providing a customizable equalizer and convolver (reverb) effect for all audio elements. Designed for Firefox and Chrome using Manifest V3.
+A browser extension for shaping media playback with a parametric equalizer, spatial controls, named presets, and live audio visualizers. Emberline uses Manifest V3 and currently targets Firefox and Chromium-based browsers.
 
-Available on [Firefox](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio-equalizer/) with OperaGX support coming soon.
+Install the published release from [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/l33s-audio-equalizer/).
 
 ![Screenshot of the Emberline popup](example.png)
 
 ## Features
-- **9-band Equalizer**: Fine-tune audio frequencies from 32Hz to 8kHz.
-- **Parametric curve editor**: Drag colored nodes across a logarithmic frequency graph with an integrated live spectrum.
-- **Popup EQ controls**: Add or remove bands directly and scroll a band node to adjust that filter's Q.
-- **Extension settings**: EQ master offset and mono/stereo output stay separate from effect widgets.
-- **Effect widgets**: Convolution and parametric EQ have independent illuminated bypass controls.
-- **Reverb Slider**: Simulates a car's interior using a built-in impulse response sample.
-- **Stereo Widener**: Puts you in the song.
-- **Basic Presets**: Change all of the settings at the same time.
+
+- **Parametric equalizer**: Shape 2–16 freely positioned bands on a logarithmic frequency graph, with low- and high-shelf endpoints.
+- **Direct graph controls**: Drag nodes for frequency and gain, scroll a node for Q, and scroll the graph to change the band count.
+- **Live analysis**: Compare source and processed spectra alongside a time-domain signal display.
+- **Visualizer hibernation**: Suspend analyzer streaming with the small LED control; streams also stop automatically when the popup closes.
+- **Spatial controls**: Blend a built-in convolution impulse response and switch the output to mono.
+- **Master EQ offset**: Move the complete response vertically or bake the offset into the filter curve.
+- **Named presets**: Save, rename, delete, copy, and import complete configurations.
+- **Per-site power**: Prevent Emberline from initializing on incompatible or DRM-protected sites; Spotify is disabled by default.
+- **Efficient lifecycle**: Audio processing and convolution assets initialize only when they are needed.
 
 ## Installation
 1. Clone or download this repository.
-2. Build the extension (optional, for TypeScript changes):
-   ```
+2. Install dependencies and build the extension:
+
+   ```sh
    npm install
    npm run build
-   npm run start (Requires Firefox configured with a profile named "Testing" to be setup.)
    ```
+
+   To launch the development build, create a Firefox profile named `Testing`, then run:
+
+   ```sh
+   npm run start
+   ```
+
 3. Load the `extension/` directory as an unpacked extension in your browser:
+
    - **Firefox**: Use [web-ext](https://github.com/mozilla/web-ext) or load as a temporary add-on.
-   - **Chrome**: Go to `chrome://extensions`, enable Developer Mode, and load the `src/` folder.
+   - **Chrome/Chromium**: Open `chrome://extensions`, enable Developer Mode, and load the `extension/` folder.
 
 ## Signing
 
 Copy `.env.example` to `.env`, set `WEB_EXT_API_KEY` and `WEB_EXT_API_SECRET`
-to your Mozilla Add-ons API credentials, then run `npm run sign`. The npm
-scripts load `.env` with Node.js, so use Node.js 22.9 or newer. The `.env` file
-is ignored by Git; never commit credentials to the repository.
+to your Mozilla Add-ons API credentials, then run `npm run sign`. This submits a
+listed release to Mozilla Add-ons. The npm scripts load `.env` with Node.js, so
+use Node.js 22.9 or newer. The `.env` file is ignored by Git; never commit
+credentials to the repository.
 
 Run `npm run sign:dry-run` to verify that both credential variables are present,
 build the extension, and lint it locally. This does not contact AMO or validate
@@ -41,7 +52,11 @@ the credentials; `npm run sign` submits the extension for signing.
 
 ## Personalizing the mixer
 
-Use the extension popup to shape the equalizer, adjust spatial controls, and
-manage named presets. Presets include convolution, stereo mode, EQ master
-offset, and the EQ curve, Q, shelf behavior, band count, and exact frequencies.
-Preset changes apply immediately and preferences are stored locally in the browser.
+Use the popup to shape the equalizer, adjust spatial controls, and manage named
+presets. Presets include convolution, output mode, EQ master offset, gain, Q,
+shelf behavior, band count, and exact frequencies. Changes apply immediately
+and preferences are stored locally in the browser.
+
+Some protected media sites do not permit Web Audio interception. Use the master
+power button in the popup header to disable Emberline for the current hostname;
+the tab reloads so the page can start again without an attached audio graph.
