@@ -41,11 +41,7 @@ the credentials; `npm run sign` submits the extension for signing.
 
 ## Personalizing the mixer
 
-Open the extension popup's settings button to manage visualizer visibility and
-presets, configure between 2 and 16 custom equalizer band frequencies, and tune
-the default Q for new bands, gain range, keyboard increment, and shelf-endpoint behavior.
-Save a named preset from the popup or options page; saved presets are available in
-the popup's global preset selector. Presets include convolution, stereo mode,
-EQ master offset, and the EQ curve, Q, shelf behavior, band count, and exact
-frequencies. Preset changes apply immediately. Preferences are stored locally in
-the browser and can be applied or removed from the options page.
+Use the extension popup to shape the equalizer, adjust spatial controls, and
+manage named presets. Presets include convolution, stereo mode, EQ master
+offset, and the EQ curve, Q, shelf behavior, band count, and exact frequencies.
+Preset changes apply immediately and preferences are stored locally in the browser.

@@ -14,10 +14,12 @@ type VisualizerSettings = { frequency: boolean; waveform: boolean };
 function createModuleWidget(options: {
     title: string;
     eyebrow: string;
+    description?: string;
     actions?: HTMLElement;
 }): { body: HTMLElement; widget: HTMLElement } {
     const widget = document.createElement("section");
     widget.className = "audio-module-widget";
+    widget.setAttribute("aria-label", options.title);
     const header = document.createElement("header");
     const copy = document.createElement("div");
     const eyebrow = document.createElement("span");
@@ -26,6 +28,12 @@ function createModuleWidget(options: {
     const title = document.createElement("h2");
     title.textContent = options.title;
     copy.append(eyebrow, title);
+    if (options.description) {
+        const description = document.createElement("small");
+        description.className = "module-description";
+        description.textContent = options.description;
+        copy.append(description);
+    }
     header.append(copy);
     if (options.actions) header.append(options.actions);
     const body = document.createElement("div");
@@ -167,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     spatialWidget.body.appendChild(stereoRow);
 
     let lastConvolverMix = .5;
-    convolverOpt = await new UserRangeOption({name:'Convolution mix', storageName:'convolver_mix', step:0.1, mount: spatialWidget.body, onValueChanged: value => {
+    convolverOpt = await new UserRangeOption({name:'Convolution mix', storageName:'convolver_mix', step:"any", mount: spatialWidget.body, onValueChanged: value => {
         if (value > 0) lastConvolverMix = value;
         setPowerState(convolverPower, value > 0);
     }}).init();
@@ -185,6 +193,7 @@ document.addEventListener('DOMContentLoaded', async() => {
     const equalizerWidget = createModuleWidget({
         eyebrow: "TONE",
         title: "Parametric equalizer",
+        description: "Drag nodes · scroll nodes for Q · scroll graph for bands",
         actions: equalizerActions
     });
     const offsetMount = document.createElement("div");
@@ -329,14 +338,6 @@ document.addEventListener('DOMContentLoaded', async() => {
             showTransferResult(renameButton, `Renamed to “${name}”`, true);
         } catch (error) {
             renameMessage.textContent = error instanceof Error ? error.message : "Unable to rename preset.";
-        }
-    });
-
-    document.getElementById('options-button')!.addEventListener('click', async () => {
-        try {
-            await Runtime.runtime.openOptionsPage();
-        } catch (error) {
-            Logger.logErr('Unable to open extension settings:', error);
         }
     });
 

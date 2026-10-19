@@ -12,13 +12,13 @@ export class UserRangeOption {
     private labelElem!:HTMLLabelElement;
     private min:number;
     private max:number;
-    private step:number;
+    private step:number | "any";
     private default:number;
     private mount: HTMLElement;
     private onValueChanged: (value: number) => void;
     private snapToZero: number;
 
-    constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number, default?:number, triggerPresetOnManual?:boolean, mount?:HTMLElement, onValueChanged?:(value:number)=>void, snapToZero?:number}) {
+    constructor(opts:{name:string, storageName?:string, min?:number, max?:number, step?:number | "any", default?:number, triggerPresetOnManual?:boolean, mount?:HTMLElement, onValueChanged?:(value:number)=>void, snapToZero?:number}) {
         this.name = opts.name;
         this.storageName = opts.storageName ?? this.name.toLowerCase().split(' ').join('_');
         this.triggerPresetOnManual = opts.triggerPresetOnManual ?? true;

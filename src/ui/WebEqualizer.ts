@@ -7,6 +7,7 @@ const graphMinimumFrequency = 20;
 const graphMaximumFrequency = 20000;
 const spectrumMinimumFrequency = 30;
 const spectrumMaximumFrequency = 12000;
+const newBandDefaultQ = 0.4;
 const bandColors = ["#bd6268", "#cf6b70", "#df7474", "#e28782", "#c95d65", "#b95865", "#d6787d", "#a94f5a"];
 
 export class WebEqualizer {
@@ -28,7 +29,7 @@ export class WebEqualizer {
     private context!: CanvasRenderingContext2D;
     private nodes: HTMLButtonElement[] = [];
     private hoveredBand: number | null = null;
-    private readouts!: HTMLDivElement;
+    private tooltip!: HTMLDivElement;
     private spectrum: number[] = [];
     private resultingSpectrum: number[] = [];
     private spectrumEnabled = true;
@@ -42,8 +43,8 @@ export class WebEqualizer {
     private responseCache: number[] = [];
     private responseCacheWidth = 0;
     private responseDirty = true;
-    private countLabel!: HTMLSpanElement;
-    private qLabel!: HTMLSpanElement;
+    private bandCountWheelDelta = 0;
+    private bandCountWheelReset: number | null = null;
     private mount: HTMLElement;
 
     constructor(opts?: { bands?: number[]; min?: number; max?: number; step?: number; default?: number; q?: number; qs?: number[]; shelfEndpoints?: boolean; mount?: HTMLElement }) {
@@ -74,46 +75,23 @@ export class WebEqualizer {
     private createElement() {
         this.container = document.createElement("div");
         this.container.className = "equalizer-container parametric-equalizer";
-        const header = document.createElement("div");
-        header.className = "equalizer-header";
-        const toolbar = document.createElement("div");
-        toolbar.className = "equalizer-toolbar";
-        const countControl = document.createElement("div");
-        countControl.className = "equalizer-count-control";
-        const removeBand = document.createElement("button");
-        removeBand.type = "button";
-        removeBand.textContent = "−";
-        removeBand.title = "Remove an equalizer band";
-        removeBand.setAttribute("aria-label", "Remove an equalizer band");
-        this.countLabel = document.createElement("span");
-        const addBand = document.createElement("button");
-        addBand.type = "button";
-        addBand.textContent = "+";
-        addBand.title = "Add an equalizer band";
-        addBand.setAttribute("aria-label", "Add an equalizer band");
-        removeBand.addEventListener("click", () => this.changeBandCount(this.bands.length - 1));
-        addBand.addEventListener("click", () => this.changeBandCount(this.bands.length + 1));
-        countControl.append(removeBand, this.countLabel, addBand);
-        this.qLabel = document.createElement("span");
-        this.qLabel.className = "equalizer-hint";
-        toolbar.append(countControl, this.qLabel);
-        header.append(toolbar);
-
         this.graph = document.createElement("div");
         this.graph.className = "equalizer-graph";
+        this.graph.addEventListener("wheel", event => this.handleBandCountWheel(event), { passive: false });
         this.plotRow = document.createElement("div");
         this.plotRow.className = "equalizer-plot-row";
         this.canvas = document.createElement("canvas");
         this.canvas.className = "equalizer-curve";
         this.context = this.canvas.getContext("2d")!;
-        this.graph.appendChild(this.canvas);
+        this.tooltip = document.createElement("div");
+        this.tooltip.className = "equalizer-node-tooltip";
+        this.tooltip.setAttribute("role", "status");
+        this.graph.append(this.canvas, this.tooltip);
         this.plotRow.appendChild(this.graph);
 
         this.rebuildNodes();
 
-        this.readouts = document.createElement("div");
-        this.readouts.className = "equalizer-readouts";
-        this.container.append(header, this.plotRow, this.readouts);
+        this.container.append(this.plotRow);
         this.mount.appendChild(this.container);
         new ResizeObserver(() => this.updateLayout()).observe(this.graph);
     }
@@ -131,10 +109,10 @@ export class WebEqualizer {
             node.addEventListener("pointerdown", event => this.startDrag(index, event));
             node.addEventListener("keydown", event => this.handleKeyboard(index, event));
             node.addEventListener("wheel", event => this.handleQWheel(index, event), { passive: false });
-            node.addEventListener("pointerenter", () => { this.hoveredBand = index; this.draw(); });
-            node.addEventListener("pointerleave", () => { this.hoveredBand = null; this.draw(); });
-            node.addEventListener("focus", () => { this.hoveredBand = index; this.draw(); });
-            node.addEventListener("blur", () => { this.hoveredBand = null; this.draw(); });
+            node.addEventListener("pointerenter", () => this.setHoveredBand(index));
+            node.addEventListener("pointerleave", () => this.setHoveredBand(null));
+            node.addEventListener("focus", () => this.setHoveredBand(index));
+            node.addEventListener("blur", () => this.setHoveredBand(null));
             this.nodes.push(node);
             this.graph.appendChild(node);
         });
@@ -151,18 +129,51 @@ export class WebEqualizer {
             .map(gain => Math.max(this.min, Math.min(this.max, gain)));
         this.qs = remapEqualizerGains(previousBands, previousQs, this.bands)
             .map(q => Math.max(.3, Math.min(4, q)));
+        if (count > previousBands.length) {
+            const addedBandCount = count - previousBands.length;
+            const leastMatchedBands = this.bands
+                .map((band, index) => ({
+                    index,
+                    distance: Math.min(...previousBands.map(previousBand => Math.abs(Math.log(band / previousBand))))
+                }))
+                .sort((left, right) => right.distance - left.distance)
+                .slice(0, addedBandCount);
+            leastMatchedBands.forEach(({ index }) => { this.qs[index] = newBandDefaultQ; });
+        }
         this.rebuildNodes();
         this.updateLayout();
+        void this.sendQs();
         void this.sendData(true);
+    }
+
+    private setHoveredBand(index: number | null): void {
+        this.hoveredBand = index;
+        this.updateTooltip();
+        this.draw();
     }
 
     private handleQWheel(index: number, event: WheelEvent): void {
         event.preventDefault();
+        event.stopPropagation();
         const direction = event.deltaY < 0 ? 1 : -1;
         this.qs[index] = Math.round(Math.max(.3, Math.min(4, this.qs[index] + direction * .1)) * 10) / 10;
         this.responseDirty = true;
         this.updateLayout();
         void this.sendQs();
+    }
+
+    private handleBandCountWheel(event: WheelEvent): void {
+        event.preventDefault();
+        this.bandCountWheelDelta += event.deltaY;
+        if (this.bandCountWheelReset !== null) window.clearTimeout(this.bandCountWheelReset);
+        this.bandCountWheelReset = window.setTimeout(() => {
+            this.bandCountWheelDelta = 0;
+            this.bandCountWheelReset = null;
+        }, 180);
+        if (Math.abs(this.bandCountWheelDelta) < 40) return;
+        const direction = this.bandCountWheelDelta < 0 ? 1 : -1;
+        this.bandCountWheelDelta = 0;
+        this.changeBandCount(this.bands.length + direction);
     }
 
     private async sendQs(): Promise<void> {
@@ -262,31 +273,29 @@ export class WebEqualizer {
         const height = this.graph.clientHeight;
         if (!width || !height) return;
         this.responseDirty = true;
-        this.countLabel.textContent = `${this.bands.length} BANDS`;
-        this.qLabel.textContent = "SCROLL A NODE · ADJUST Q";
         this.nodes.forEach((node, index) => {
             node.style.left = `${Math.max(11, Math.min(width - 11, this.frequencyToX(this.bands[index], width)))}px`;
             node.style.top = `${Math.max(11, Math.min(height - 11, this.gainToY(this.values[index], height)))}px`;
-            node.setAttribute("aria-valuetext", `${this.formatFrequency(this.bands[index])}, ${this.formatGain(this.values[index])}`);
+            node.setAttribute("aria-valuetext", `${this.formatFrequency(this.bands[index])}, ${this.formatGain(this.values[index])}, Q ${this.qs[index].toFixed(1)}`);
         });
-        this.renderReadouts();
+        this.updateTooltip();
         this.draw();
     }
 
-    private renderReadouts(): void {
-        this.readouts.replaceChildren();
-        this.bands.forEach((frequency, index) => {
-            const item = document.createElement("div");
-            item.style.setProperty("--band-color", bandColors[index % bandColors.length]);
-            const number = document.createElement("i");
-            number.textContent = String(index + 1);
-            const frequencyLabel = document.createElement("span");
-            frequencyLabel.textContent = this.formatFrequency(frequency);
-            const gainLabel = document.createElement("strong");
-            gainLabel.textContent = `${this.formatGain(this.values[index])} · Q ${this.qs[index].toFixed(1)}`;
-            item.append(number, frequencyLabel, gainLabel);
-            this.readouts.appendChild(item);
-        });
+    private updateTooltip(): void {
+        if (this.hoveredBand === null || !this.nodes[this.hoveredBand]) {
+            this.tooltip.classList.remove("is-visible", "is-below");
+            return;
+        }
+        const index = this.hoveredBand;
+        const nodeX = Number.parseFloat(this.nodes[index].style.left);
+        const nodeY = Number.parseFloat(this.nodes[index].style.top);
+        const showBelow = nodeY < 42;
+        this.tooltip.textContent = `BAND ${index + 1}  ·  ${this.formatFrequency(this.bands[index])} Hz  ·  ${this.formatGain(this.values[index])}  ·  Q ${this.qs[index].toFixed(1)}`;
+        this.tooltip.style.left = `${Math.max(75, Math.min(this.graph.clientWidth - 75, nodeX))}px`;
+        this.tooltip.style.top = `${nodeY + (showBelow ? 16 : -16)}px`;
+        this.tooltip.classList.toggle("is-below", showBelow);
+        this.tooltip.classList.add("is-visible");
     }
 
     private draw(): void {

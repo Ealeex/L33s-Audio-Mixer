@@ -4,9 +4,6 @@ type Options = {
 }
 
 export class Button {
-
-    // new Button({name:'Options', action:()=>{Runtime.runtime.openOptionsPage()}});
-
     element!: HTMLDivElement;
     name: string;
     action: Function;

@@ -6,8 +6,7 @@
   "scripts": {
     "build:content_scripts": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
     "build:popup": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/popup.ts --bundle --platform=node --format=iife --outfile=extension/popup/popup.js",
-    "build:options": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/options.ts --bundle --platform=node --format=iife --outfile=extension/config_page/options.js",
-    "build": "npm run build:content_scripts && npm run build:popup && npm run build:options",
+    "build": "npm run build:content_scripts && npm run build:popup",
     "start": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js run -s extension --firefox-profile Testing --url \"https://www.youtube.com/watch?v=GQ3V50XoLOM&list=PLmFC8ycXOOnCb31tjrzQjlWJbmNxT3HCA\"",
     "build-ext": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js build -s extension",
     "sign": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js sign --channel=listed -s extension --amo-metadata=extension/metadata.json",
