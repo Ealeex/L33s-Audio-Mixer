@@ -5,8 +5,18 @@ import { createLogSpacedBands, getEqualizerConfig, remapEqualizerGains } from ".
 
 const graphMinimumFrequency = 20;
 const graphMaximumFrequency = 20000;
+const viewportMinimumFrequency = 16;
+const viewportMaximumFrequency = 25000;
+const graphAxisHeight = 27;
 const spectrumMinimumFrequency = 30;
 const spectrumMaximumFrequency = 12000;
+const frequencyGrid = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+const frequencyGridMinor = [30, 40, 60, 80, 300, 400, 600, 800, 3000, 4000, 6000, 8000, 12000, 16000];
+const frequencyRanges = [
+    { label: "BASS", minimum: 20, maximum: 250 },
+    { label: "MIDS", minimum: 250, maximum: 4000 },
+    { label: "TREBLE", minimum: 4000, maximum: 20000 }
+] as const;
 const newBandDefaultQ = 0.4;
 const bandColors = ["#bd6268", "#cf6b70", "#df7474", "#e28782", "#c95d65", "#b95865", "#d6787d", "#a94f5a"];
 
@@ -27,6 +37,7 @@ export class WebEqualizer {
     private plotRow!: HTMLDivElement;
     private canvas!: HTMLCanvasElement;
     private context!: CanvasRenderingContext2D;
+    private axis!: HTMLDivElement;
     private nodes: HTMLButtonElement[] = [];
     private hoveredBand: number | null = null;
     private tooltip!: HTMLDivElement;
@@ -49,8 +60,8 @@ export class WebEqualizer {
 
     constructor(opts?: { bands?: number[]; min?: number; max?: number; step?: number; default?: number; q?: number; qs?: number[]; shelfEndpoints?: boolean; mount?: HTMLElement }) {
         this.bands = [...(opts?.bands ?? [])];
-        this.min = opts?.min ?? -25;
-        this.max = opts?.max ?? 25;
+        this.min = opts?.min ?? -20;
+        this.max = opts?.max ?? 20;
         this.step = opts?.step ?? 1;
         this.default = opts?.default ?? 0;
         this.qs = this.bands.map((_, index) => opts?.qs?.[index] ?? opts?.q ?? 1);
@@ -83,10 +94,11 @@ export class WebEqualizer {
         this.canvas = document.createElement("canvas");
         this.canvas.className = "equalizer-curve";
         this.context = this.canvas.getContext("2d")!;
+        this.axis = this.createAxis();
         this.tooltip = document.createElement("div");
         this.tooltip.className = "equalizer-node-tooltip";
         this.tooltip.setAttribute("role", "status");
-        this.graph.append(this.canvas, this.tooltip);
+        this.graph.append(this.canvas, this.axis, this.tooltip);
         this.plotRow.appendChild(this.graph);
 
         this.rebuildNodes();
@@ -94,6 +106,30 @@ export class WebEqualizer {
         this.container.append(this.plotRow);
         this.mount.appendChild(this.container);
         new ResizeObserver(() => this.updateLayout()).observe(this.graph);
+    }
+
+    private createAxis(): HTMLDivElement {
+        const axis = document.createElement("div");
+        axis.className = "equalizer-axis";
+        axis.setAttribute("aria-hidden", "true");
+        for (const frequency of frequencyGrid) {
+            const label = document.createElement("span");
+            label.className = "equalizer-frequency-label";
+            label.dataset.frequency = String(frequency);
+            label.textContent = this.formatFrequency(frequency);
+            axis.appendChild(label);
+        }
+        for (const range of frequencyRanges) {
+            const marker = document.createElement("div");
+            marker.className = "equalizer-range-marker";
+            marker.dataset.minimum = String(range.minimum);
+            marker.dataset.maximum = String(range.maximum);
+            const label = document.createElement("span");
+            label.textContent = range.label;
+            marker.appendChild(label);
+            axis.appendChild(marker);
+        }
+        return axis;
     }
 
     private rebuildNodes(): void {
@@ -104,7 +140,9 @@ export class WebEqualizer {
             node.type = "button";
             node.className = "equalizer-node";
             node.style.setProperty("--band-color", bandColors[index % bandColors.length]);
-            node.textContent = String(index + 1);
+            const number = document.createElement("span");
+            number.textContent = String(index + 1);
+            node.appendChild(number);
             node.setAttribute("aria-label", `Equalizer band ${index + 1}`);
             node.addEventListener("pointerdown", event => this.startDrag(index, event));
             node.addEventListener("keydown", event => this.handleKeyboard(index, event));
@@ -190,10 +228,11 @@ export class WebEqualizer {
         node.setPointerCapture(event.pointerId);
         const update = (pointerEvent: PointerEvent) => {
             const bounds = this.graph.getBoundingClientRect();
+            const plotHeight = Math.max(1, bounds.height - graphAxisHeight);
             const x = Math.max(0, Math.min(bounds.width, pointerEvent.clientX - bounds.left));
-            const y = Math.max(0, Math.min(bounds.height, pointerEvent.clientY - bounds.top));
+            const y = Math.max(0, Math.min(plotHeight, pointerEvent.clientY - bounds.top));
             this.bands[index] = Math.round(Math.max(graphMinimumFrequency, Math.min(graphMaximumFrequency, this.xToFrequency(x, bounds.width))));
-            const rawGain = this.max - (y / bounds.height) * (this.max - this.min);
+            const rawGain = this.max - (y / plotHeight) * (this.max - this.min);
             this.values[index] = Math.max(this.min, Math.min(this.max, rawGain));
             this.updateLayout();
             this.queueData();
@@ -261,11 +300,11 @@ export class WebEqualizer {
     }
 
     private frequencyToX(frequency: number, width: number): number {
-        return Math.log(frequency / graphMinimumFrequency) / Math.log(graphMaximumFrequency / graphMinimumFrequency) * width;
+        return Math.log(frequency / viewportMinimumFrequency) / Math.log(viewportMaximumFrequency / viewportMinimumFrequency) * width;
     }
 
     private xToFrequency(x: number, width: number): number {
-        return graphMinimumFrequency * Math.pow(graphMaximumFrequency / graphMinimumFrequency, x / width);
+        return viewportMinimumFrequency * Math.pow(viewportMaximumFrequency / viewportMinimumFrequency, x / width);
     }
 
     private gainToY(gain: number, height: number): number {
@@ -276,14 +315,31 @@ export class WebEqualizer {
         const width = this.graph.clientWidth;
         const height = this.graph.clientHeight;
         if (!width || !height) return;
+        const plotHeight = Math.max(1, height - graphAxisHeight);
         this.responseDirty = true;
         this.nodes.forEach((node, index) => {
             node.style.left = `${Math.max(11, Math.min(width - 11, this.frequencyToX(this.bands[index], width)))}px`;
-            node.style.top = `${Math.max(11, Math.min(height - 11, this.gainToY(this.values[index], height)))}px`;
+            node.style.top = `${Math.max(11, Math.min(plotHeight - 11, this.gainToY(this.values[index], plotHeight)))}px`;
             node.setAttribute("aria-valuetext", `${this.formatFrequency(this.bands[index])}, ${this.formatGain(this.values[index])}, Q ${this.qs[index].toFixed(1)}`);
         });
+        this.updateAxis(width);
         this.updateTooltip();
         this.draw();
+    }
+
+    private updateAxis(width: number): void {
+        this.axis.querySelectorAll<HTMLElement>(".equalizer-frequency-label").forEach(label => {
+            const frequency = Number(label.dataset.frequency);
+            label.style.left = `${this.frequencyToX(frequency, width)}px`;
+        });
+        this.axis.querySelectorAll<HTMLElement>(".equalizer-range-marker").forEach(marker => {
+            const minimum = Number(marker.dataset.minimum);
+            const maximum = Number(marker.dataset.maximum);
+            const start = this.frequencyToX(minimum, width);
+            const end = this.frequencyToX(maximum, width);
+            marker.style.left = `${start}px`;
+            marker.style.width = `${end - start}px`;
+        });
     }
 
     private updateTooltip(): void {
@@ -305,6 +361,7 @@ export class WebEqualizer {
     private draw(): void {
         const width = this.graph.clientWidth;
         const height = this.graph.clientHeight;
+        const plotHeight = Math.max(1, height - graphAxisHeight);
         const scale = window.devicePixelRatio || 1;
         if (this.canvas.width !== Math.round(width * scale) || this.canvas.height !== Math.round(height * scale)) {
             this.canvas.width = Math.round(width * scale);
@@ -313,32 +370,45 @@ export class WebEqualizer {
         const ctx = this.context;
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         ctx.clearRect(0, 0, width, height);
-        this.drawGrid(ctx, width, height);
+        this.drawGrid(ctx, width, plotHeight);
         if (this.spectrumEnabled) {
-            this.drawSpectrum(ctx, width, height, this.spectrum, false);
-            this.drawSpectrum(ctx, width, height, this.resultingSpectrum, true);
+            this.drawSpectrum(ctx, width, plotHeight, this.spectrum, false);
+            this.drawSpectrum(ctx, width, plotHeight, this.resultingSpectrum, true);
         }
-        this.drawResponse(ctx, width, height);
+        this.drawResponse(ctx, width, plotHeight);
     }
 
-    private drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    private drawGrid(ctx: CanvasRenderingContext2D, width: number, plotHeight: number): void {
         ctx.lineWidth = 1;
-        for (const frequency of [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]) {
-            const x = this.frequencyToX(frequency, width);
-            ctx.strokeStyle = "rgba(130, 151, 158, .11)";
+        for (const frequency of frequencyGridMinor) {
+            const x = this.alignCanvasLine(this.frequencyToX(frequency, width));
+            ctx.strokeStyle = "rgba(130, 151, 158, .055)";
             ctx.beginPath();
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, height);
+            ctx.lineTo(x, plotHeight);
+            ctx.stroke();
+        }
+        for (const frequency of frequencyGrid) {
+            const x = this.alignCanvasLine(this.frequencyToX(frequency, width));
+            ctx.strokeStyle = "rgba(130, 151, 158, .13)";
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, plotHeight);
             ctx.stroke();
         }
         for (const gain of [-this.max, -this.max / 2, 0, this.max / 2, this.max]) {
-            const y = this.gainToY(gain, height);
+            const y = this.gainToY(gain, plotHeight);
             ctx.strokeStyle = gain === 0 ? "rgba(230, 235, 236, .42)" : "rgba(130, 151, 158, .1)";
             ctx.beginPath();
             ctx.moveTo(0, y);
             ctx.lineTo(width, y);
             ctx.stroke();
         }
+    }
+
+    private alignCanvasLine(x: number): number {
+        const scale = window.devicePixelRatio || 1;
+        return (Math.round(x * scale) + .5) / scale;
     }
 
     private drawSpectrum(ctx: CanvasRenderingContext2D, width: number, height: number, spectrum: number[], resulting: boolean): void {
@@ -382,6 +452,9 @@ export class WebEqualizer {
 
     private drawResponse(ctx: CanvasRenderingContext2D, width: number, height: number): void {
         const sampleCount = 180;
+        const startX = this.frequencyToX(graphMinimumFrequency, width);
+        const endX = this.frequencyToX(graphMaximumFrequency, width);
+        const responseWidth = endX - startX;
         const responseAt = (frequency: number) => this.bands.reduce((total, band, index) => {
             const type = this.shelfEndpoints && index === 0
                 ? "lowshelf"
@@ -392,20 +465,27 @@ export class WebEqualizer {
         }, 0);
         if (this.responseDirty || this.responseCacheWidth !== width) {
             this.responseCache = Array.from({ length: sampleCount }, (_, index) => {
-                const x = index / (sampleCount - 1) * width;
-                const frequency = this.xToFrequency(x, width);
+                const position = index / (sampleCount - 1);
+                const frequency = graphMinimumFrequency * Math.pow(graphMaximumFrequency / graphMinimumFrequency, position);
                 return Math.max(this.min, Math.min(this.max, responseAt(frequency)));
             });
             this.responseCacheWidth = width;
             this.responseDirty = false;
         }
+        const firstDisplayedGain = this.responseCache[0] + (this.enabled ? this.offset : 0);
+        const lastDisplayedGain = this.responseCache[this.responseCache.length - 1] + (this.enabled ? this.offset : 0);
+        const firstY = this.gainToY(Math.max(this.min, Math.min(this.max, firstDisplayedGain)), height);
+        const lastY = this.gainToY(Math.max(this.min, Math.min(this.max, lastDisplayedGain)), height);
         ctx.beginPath();
+        ctx.moveTo(0, firstY);
+        ctx.lineTo(startX, firstY);
         for (let index = 0; index < this.responseCache.length; index++) {
-            const x = index / (this.responseCache.length - 1) * width;
+            const x = startX + index / (this.responseCache.length - 1) * responseWidth;
             const displayedGain = this.responseCache[index] + (this.enabled ? this.offset : 0);
             const y = this.gainToY(Math.max(this.min, Math.min(this.max, displayedGain)), height);
-            if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            ctx.lineTo(x, y);
         }
+        ctx.lineTo(width, lastY);
         ctx.strokeStyle = "rgba(236, 241, 241, .92)";
         ctx.lineWidth = 2;
         ctx.shadowColor = "rgba(236, 241, 241, .18)";
@@ -422,8 +502,9 @@ export class WebEqualizer {
                 : "peaking";
         ctx.beginPath();
         for (let index = 0; index < sampleCount; index++) {
-            const x = index / (sampleCount - 1) * width;
-            const frequency = this.xToFrequency(x, width);
+            const position = index / (sampleCount - 1);
+            const x = startX + position * responseWidth;
+            const frequency = graphMinimumFrequency * Math.pow(graphMaximumFrequency / graphMinimumFrequency, position);
             const contribution = this.enabled
                 ? this.getFilterResponse(type, this.bands[bandIndex], this.values[bandIndex], frequency)
                 : 0;

@@ -248,6 +248,20 @@ document.addEventListener('DOMContentLoaded', async() => {
     });
     const offsetMount = document.createElement("div");
     offsetMount.className = "equalizer-offset-control";
+    const offsetPuck = document.createElement("span");
+    offsetPuck.className = "equalizer-offset-puck";
+    offsetPuck.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 3; index++) {
+        const grip = document.createElement("i");
+        grip.className = "equalizer-offset-puck-grip";
+        offsetPuck.appendChild(grip);
+    }
+    const updateOffsetPuck = (value: number) => {
+        const normalized = (20 - Math.max(-20, Math.min(20, value))) / 40;
+        const graph = equalizerWidget.body.querySelector<HTMLElement>(".equalizer-graph");
+        const puckTravel = Math.max(1, (graph?.clientHeight ?? 172) - 28);
+        offsetPuck.style.top = `${normalized * puckTravel}px`;
+    };
     const equalizerEnabledResult = await Runtime.storage.local.get("equalizer-enabled");
     let equalizerEnabled = equalizerEnabledResult["equalizer-enabled"] !== false;
     setPowerState(equalizerPower, equalizerEnabled);
@@ -272,9 +286,33 @@ document.addEventListener('DOMContentLoaded', async() => {
         mount:offsetMount,
         onValueChanged: value => {
             equalizer?.setOffset(value);
+            updateOffsetPuck(value);
             bakeOffsetButton.disabled = Math.abs(value) < 0.05;
         }
     }).init();
+    offsetMount.appendChild(offsetPuck);
+    updateOffsetPuck(offsetOpt.getValue());
+    offsetPuck.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        offsetMount.querySelector<HTMLInputElement>('input[type="range"]')?.focus();
+        offsetPuck.setPointerCapture(event.pointerId);
+        const updateFromPointer = (pointerEvent: PointerEvent) => {
+            const graph = equalizerWidget.body.querySelector<HTMLElement>(".equalizer-graph");
+            if (!graph) return;
+            const bounds = graph.getBoundingClientRect();
+            const puckTravel = Math.max(1, graph.clientHeight - 28);
+            const y = Math.max(0, Math.min(puckTravel, pointerEvent.clientY - bounds.top));
+            const value = Math.round((20 - (y / puckTravel) * 40) * 10) / 10;
+            offsetOpt.setManualValue(value);
+        };
+        const finish = () => {
+            offsetPuck.removeEventListener("pointermove", updateFromPointer);
+        };
+        updateFromPointer(event);
+        offsetPuck.addEventListener("pointermove", updateFromPointer);
+        offsetPuck.addEventListener("pointerup", finish, { once: true });
+        offsetPuck.addEventListener("pointercancel", finish, { once: true });
+    });
     equalizer.bindSideControl(offsetMount);
     equalizer.setOffset(offsetOpt.getValue());
     bakeOffsetButton.disabled = Math.abs(offsetOpt.getValue()) < 0.05;
@@ -301,6 +339,7 @@ document.addEventListener('DOMContentLoaded', async() => {
         setPowerState(convolverPower, preset.convolver > 0);
         stereoToggle.checked = preset.stereoWidener === 0;
         offsetOpt.animateToValue(preset.offset);
+        updateOffsetPuck(preset.offset);
         equalizer?.animateOffsetTo(preset.offset);
         bakeOffsetButton.disabled = Math.abs(preset.offset) < 0.05;
         equalizer?.animateToPresetLayout(preset.bands, preset.equalizer, preset.q, preset.shelfEndpoints);

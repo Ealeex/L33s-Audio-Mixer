@@ -19,6 +19,7 @@ Install the published release from [Firefox Add-ons](https://addons.mozilla.org/
 - **Efficient lifecycle**: Audio processing and convolution assets initialize only when they are needed.
 
 ## Installation
+
 1. Clone or download this repository.
 2. Install dependencies and build the extension:
 
@@ -33,10 +34,24 @@ Install the published release from [Firefox Add-ons](https://addons.mozilla.org/
    npm run start
    ```
 
-3. Load the `extension/` directory as an unpacked extension in your browser:
+3. Load the appropriate directory as an unpacked extension:
 
    - **Firefox**: Use [web-ext](https://github.com/mozilla/web-ext) or load as a temporary add-on.
-   - **Chrome/Chromium**: Open `chrome://extensions`, enable Developer Mode, and load the `extension/` folder.
+   - **Chrome/Opera/Chromium**: Run `npm run build:chromium`, open the browser's extensions page, enable Developer Mode, and load `dist/chromium/`.
+
+## Chromium packaging
+
+Firefox remains the source build in `extension/`. Chromium packages are staged
+separately in `dist/chromium/`; the build removes Firefox-only manifest metadata
+and copies only files used at runtime.
+
+Run `npm run package:opera` or `npm run package:chrome` to create
+`web-ext-artifacts/emberline-chromium.zip`. The same package can be uploaded to
+Opera Add-ons or the Chrome Web Store. These commands do not modify the Firefox
+manifest or submit anything to Mozilla.
+
+- **Opera:** Upload the ZIP through the [Opera Add-ons developer portal](https://addons.opera.com/developer/).
+- **Chrome:** Upload the ZIP through the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole/).
 
 ## Signing
 

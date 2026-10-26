@@ -1,12 +1,16 @@
 {
   "name": "emberline",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "A parametric equalizer and spatial audio toolkit for shaping browser audio.",
   "main": "inject.js",
   "scripts": {
     "build:content_scripts": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/inject.ts --bundle --platform=node --format=iife --outfile=extension/content_scripts/inject.js",
     "build:popup": "node --env-file-if-exists=.env ./node_modules/esbuild/bin/esbuild src/popup.ts --bundle --platform=node --format=iife --outfile=extension/popup/popup.js",
     "build": "npm run build:content_scripts && npm run build:popup",
+    "build:chromium": "npm run build && node tools/build-chromium.mjs",
+    "package:chromium": "npm run build:chromium && node ./node_modules/web-ext/bin/web-ext.js build -s dist/chromium -a web-ext-artifacts -n emberline-chromium.zip --overwrite-dest",
+    "package:opera": "npm run package:chromium",
+    "package:chrome": "npm run package:chromium",
     "start": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js run -s extension --firefox-profile Testing --url \"https://www.youtube.com/watch?v=GQ3V50XoLOM&list=PLmFC8ycXOOnCb31tjrzQjlWJbmNxT3HCA\"",
     "build-ext": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js build -s extension",
     "sign": "node --env-file-if-exists=.env ./node_modules/web-ext/bin/web-ext.js sign --channel=listed -s extension --amo-metadata=extension/metadata.json",

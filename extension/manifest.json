@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Emberline",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "A parametric equalizer and spatial audio toolkit for shaping browser audio.",
   "permissions": [
     "storage",

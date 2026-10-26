@@ -14,7 +14,7 @@ export type EqualizerConfig = {
 
 export const defaultEqualizerConfig: EqualizerConfig = {
     q: 1,
-    gainRange: 25,
+    gainRange: 20,
     gainStep: 2,
     shelfEndpoints: true
 };
@@ -40,10 +40,10 @@ export async function getEqualizerConfig(): Promise<EqualizerConfig> {
     const result = await Runtime.storage.local.get(equalizerConfigKey);
     try {
         const config = validateEqualizerConfig(result[equalizerConfigKey] ?? defaultEqualizerConfig);
-        if (config.gainRange === 20) {
-            const upgraded = { ...config, gainRange: 25 };
-            await Runtime.storage.local.set({ [equalizerConfigKey]: upgraded });
-            return upgraded;
+        if (config.gainRange !== 20) {
+            const normalized = { ...config, gainRange: 20 };
+            await Runtime.storage.local.set({ [equalizerConfigKey]: normalized });
+            return normalized;
         }
         return config;
     } catch {

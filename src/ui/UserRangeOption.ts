@@ -113,6 +113,12 @@ export class UserRangeOption {
         void this.sendData(false);
     }
 
+    setManualValue(value:number) {
+        value = Math.max(Math.min(value, this.max), this.min);
+        this.inputElem.value = value.toString();
+        void this.sendData(true);
+    }
+
     animateToValue(value: number, durationMs = Config.PRESET_TRANSITION_MS): void {
         const target = Math.max(Math.min(value, this.max), this.min);
         void durationMs;
